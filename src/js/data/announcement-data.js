@@ -2,6 +2,12 @@
 // SHARED DATA: Student Announcement Banner
 // ============================================
 
+window.FES_API_BASE = window.FES_API_BASE || (
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+    ? "http://127.0.0.1:5000/api"
+    : "/api"
+);
+
 const DEFAULT_ANNOUNCEMENT = {
   message: "",
   isActive: false
@@ -14,7 +20,7 @@ let announcementCache = {
 async function loadAnnouncement() {
   try {
     const response = await fetch(
-      "http://127.0.0.1:5000/api/system-settings",
+      `${window.FES_API_BASE}/system-settings`,
       {
         credentials: "include"
       }
@@ -44,7 +50,7 @@ function getAnnouncement() {
 
 async function saveAnnouncement(settings) {
   const response = await fetch(
-    "http://127.0.0.1:5000/api/system-settings",
+    `${window.FES_API_BASE}/system-settings`,
     {
       method: "PUT",
       credentials: "include",

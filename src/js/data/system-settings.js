@@ -2,6 +2,12 @@
 // SHARED DATA: System Settings
 // ============================================
 
+window.FES_API_BASE = window.FES_API_BASE || (
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+    ? "http://127.0.0.1:5000/api"
+    : "/api"
+);
+
 const DEFAULT_SYSTEM_SETTINGS = {
   academicYear: "2025-2026",
   semester: "2nd"
@@ -14,7 +20,7 @@ let systemSettingsCache = {
 async function loadSystemSettings() {
   try {
     const response = await fetch(
-      "http://127.0.0.1:5000/api/system-settings",
+      `${window.FES_API_BASE}/system-settings`,
       {
         credentials: "include"
       }
@@ -44,7 +50,7 @@ function getSystemSettings() {
 
 async function saveSystemSettings(newSettings) {
   const response = await fetch(
-    "http://127.0.0.1:5000/api/system-settings",
+    `${window.FES_API_BASE}/system-settings`,
     {
       method: "PUT",
       credentials: "include",

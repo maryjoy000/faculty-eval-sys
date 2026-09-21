@@ -4,7 +4,16 @@
 // stay consistent instead of being repeated on every page.
 // ============================================
 
-const API_BASE_URL = "http://127.0.0.1:5000/api";
+// Backend base URL, resolved once per page:
+// - local development (Live Server on 127.0.0.1/localhost): Flask runs on :5000
+// - deployed (any real hostname/IP): same-origin "/api", proxied by nginx
+window.FES_API_BASE = window.FES_API_BASE || (
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+    ? "http://127.0.0.1:5000/api"
+    : "/api"
+);
+
+const API_BASE_URL = window.FES_API_BASE;
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {

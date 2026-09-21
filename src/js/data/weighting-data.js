@@ -2,6 +2,12 @@
 // SHARED DATA: Score Weighting Configuration
 // ============================================
 
+window.FES_API_BASE = window.FES_API_BASE || (
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+    ? "http://127.0.0.1:5000/api"
+    : "/api"
+);
+
 const DEFAULT_WEIGHTING = {
   classroomObservation: 70,
   domain6Share: 75,
@@ -17,7 +23,7 @@ let weightingCache = {
 async function loadWeighting() {
   try {
     const response = await fetch(
-      "http://127.0.0.1:5000/api/evaluation-weightings",
+      `${window.FES_API_BASE}/evaluation-weightings`,
       {
         credentials: "include"
       }
@@ -50,7 +56,7 @@ function getWeighting() {
 
 async function saveWeighting(weighting) {
   const response = await fetch(
-    "http://127.0.0.1:5000/api/evaluation-weightings",
+    `${window.FES_API_BASE}/evaluation-weightings`,
     {
       method: "PUT",
       credentials: "include",

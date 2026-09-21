@@ -2,6 +2,12 @@
 // SHARED DATA: Evaluation Period
 // ============================================
 
+window.FES_API_BASE = window.FES_API_BASE || (
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+    ? "http://127.0.0.1:5000/api"
+    : "/api"
+);
+
 const DEFAULT_EVALUATION_PERIOD = {
   evaluationType: "student",
   startDate: "",
@@ -20,7 +26,7 @@ let evaluationPeriodCache = {
 async function loadEvaluationPeriod() {
   try {
     const response = await fetch(
-      "http://127.0.0.1:5000/api/evaluation-periods/current",
+      `${window.FES_API_BASE}/evaluation-periods/current`,
       {
         credentials: "include"
       }
@@ -78,7 +84,7 @@ async function saveEvaluationPeriod(period) {
   }
 
   const response = await fetch(
-    "http://127.0.0.1:5000/api/evaluation-periods/current",
+    `${window.FES_API_BASE}/evaluation-periods/current`,
     {
       method: "PUT",
       credentials: "include",

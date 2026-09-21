@@ -15,9 +15,18 @@
 
 let currentSession = null;
 
+// Same base-URL resolution as utils/api.js (kept here so this file works
+// even though it loads first): local dev targets Flask on :5000, deployed
+// pages use the same-origin "/api" proxy.
+window.FES_API_BASE = window.FES_API_BASE || (
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+    ? "http://127.0.0.1:5000/api"
+    : "/api"
+);
+
 function loadCurrentSessionSync() {
   const xhr = new XMLHttpRequest();
-  xhr.open("GET", "http://127.0.0.1:5000/api/auth/me", false); // false = synchronous
+  xhr.open("GET", `${window.FES_API_BASE}/auth/me`, false); // false = synchronous
   xhr.withCredentials = true;
   try {
     xhr.send();
