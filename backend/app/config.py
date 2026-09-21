@@ -55,3 +55,16 @@ class Config:
         ).split(",")
         if origin.strip()
     ]
+
+    # Password-reset email (SMTP). Sending is skipped with a clear log
+    # error when these are not configured, so the feature degrades safely.
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+    MAIL_FROM = os.environ.get("MAIL_FROM", "")
+    MAIL_FROM_NAME = os.environ.get("MAIL_FROM_NAME", "Faculty Evaluation System")
+
+    # Public base URL of the frontend used in reset links
+    # (e.g. https://headwaters-fes.tech). Falls back to the request host.
+    FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "").rstrip("/")

@@ -222,3 +222,54 @@ flask --app run.py db upgrade
 systemctl restart fes
 ```
 
+---
+
+# Follow-up Update — Forgot Password via Email (SMTP)
+
+## 7. Forgot password (implemented)
+
+**Before:** the "Forgot Password?" modal only logged to the console.
+
+**After:** a real email flow.
+
+### Workflow
+1. Login page → **Forgot Password?** → enter the registered email.
+2. The server emails a reset link (valid for **1 hour**) if the address
+   belongs to an account. The API always answers with the same generic
+   message, so it cannot be used to discover which emails are registered.
+3. The link opens `/src/reset-password.html?token=...` with **New Password**
+   and **Confirm Password** fields, each with a show/hide (eye) toggle.
+4. Submitting updates the password, signs out every existing session, and
+   redirects to the login page. Links are single-use: once the password
+   changes, the token's fingerprint no longer matches and old links are
+   rejected. Expired/malformed links show an "invalid or expired" panel.
+
+### Security notes
+- Token: `itsdangerous` signed + timestamped, bound to the current
+  password hash (auto-invalidated after use).
+- Minimum password length: 8 characters.
+- SMTP failures are logged server-side and never exposed to the client.
+
+### Configuration (`.env`)
+| Variable | Purpose |
+|---|---|
+| `MAIL_SERVER` / `MAIL_PORT` | SMTP host (Gmail: `smtp.gmail.com` / `587`) |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | Sender account + **App Password** (Gmail requires 2-Step Verification) |
+| `MAIL_FROM` / `MAIL_FROM_NAME` | From address and display name |
+| `FRONTEND_BASE_URL` | Public base URL used in reset links, e.g. `https://headwaters-fes.tech` |
+
+### Files
+| File | Change |
+|---|---|
+| `backend/app/utils/mailer.py` | New: stdlib SMTP sender |
+| `backend/app/utils/password_reset.py` | New: signed, expiring, single-use tokens |
+| `backend/app/routes/auth.py` | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` |
+| `backend/app/config.py` | MAIL_* + FRONTEND_BASE_URL settings |
+| `src/js/pages/login.js` | Modal wired to the API |
+| `src/reset-password.html`, `src/js/pages/reset-password.js` | New reset page (password + confirm, eye toggles) |
+| `backend/tests/test_password_reset.py` | New tests (8 cases; SMTP mocked) |
+
+### Server update
+Add the `MAIL_*` and `FRONTEND_BASE_URL` variables to `backend/.env`,
+then `systemctl restart fes`.
+

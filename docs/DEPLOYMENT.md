@@ -85,6 +85,18 @@ MODEL_PATH=
 MODEL_HF_ID=maryjoy1228/fes-xlmr-finetuned
 HF_TOKEN=hf_xxx_read_token
 
+# Password-reset email (SMTP). Gmail: create an App Password (requires
+# 2-Step Verification) — the 16 characters, without spaces.
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your.sender@gmail.com
+MAIL_PASSWORD=xxxxxxxxxxxxxxxx
+MAIL_FROM=your.sender@gmail.com
+MAIL_FROM_NAME=Faculty Evaluation System
+
+# Public frontend base URL used in reset links (no trailing slash).
+FRONTEND_BASE_URL=https://fes.your-domain.com
+
 # Seed-time bootstrap accounts (change before first seed)
 DEFAULT_ADMIN_USERNAME=admin-jane
 DEFAULT_ADMIN_PASSWORD=CHANGE_ME

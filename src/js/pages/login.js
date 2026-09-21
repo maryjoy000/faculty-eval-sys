@@ -270,7 +270,7 @@ if (
   forgotPasswordBackdrop.addEventListener("click", closeForgotPasswordModal);
   closeConfirmationBtn.addEventListener("click", closeForgotPasswordModal);
 
-  forgotPasswordForm.addEventListener("submit", (event) => {
+  forgotPasswordForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const resetEmail = document.getElementById("reset-email");
@@ -278,8 +278,20 @@ if (
     if (!resetEmail) return;
 
     const email = resetEmail.value.trim();
+    const submitBtn = forgotPasswordForm.querySelector("button[type=submit]");
 
-    console.log(`Password reset requested for: ${email}`);
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      await apiPost("/auth/forgot-password", { email });
+    } catch (err) {
+      // The API deliberately answers the same for every address; a failure
+      // here is a network/server problem. Still show the generic
+      // confirmation so account existence is never revealed.
+      console.error("Password reset request failed:", err);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
 
     forgotPasswordForm.classList.add("hidden");
     resetConfirmation.classList.remove("hidden");
