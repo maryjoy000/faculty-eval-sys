@@ -1,12 +1,15 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 
+from ..extensions import db
 from ..models.user import User
 from ..models.student import Student
 from ..utils.decorators import get_current_role
 from ..services.activity_service import log_activity
 
 auth_bp = Blueprint("auth", __name__)
+
+PENDING_2FA_SESSION_KEY = "pending_2fa"
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -20,14 +23,27 @@ def login():
 
     user = User.query.filter_by(username=username).first()
     if user and user.status == "active" and user.check_password(password):
+        if user.two_factor_enabled:
+            # Password OK but a second factor is still required. Do NOT
+            # log the user in yet — /me stays 401 until /2fa/verify-login.
+            session[PENDING_2FA_SESSION_KEY] = user.get_id()
+            return jsonify({"two_factor_required": True}), 202
+        if user.role == "admin":
+            # Admins must enroll in 2FA before a full login is granted.
+            session[PENDING_2FA_SESSION_KEY] = user.get_id()
+            return jsonify({"two_factor_setup_required": True}), 202
         login_user(user)
+        session.pop(PENDING_2FA_SESSION_KEY, None)
         log_activity("Logged in", user_id=user.id)
+        db.session.commit()
         return jsonify({"id": user.id, "username": user.username, "name": user.name, "role": user.role}), 200
 
     student = Student.query.filter_by(lrn=username).first()
     if student and student.check_password(password):
         login_user(student)
+        session.pop(PENDING_2FA_SESSION_KEY, None)
         log_activity("Logged in", student_id=student.id)
+        db.session.commit()
         return jsonify({"id": student.id, "username": student.lrn, "name": student.name, "role": "student"}), 200
 
     return jsonify({"error": "Invalid username or password"}), 401
@@ -43,6 +59,8 @@ def logout():
         log_activity("Logged out", user_id=current_user.id)
 
     logout_user()
+    session.pop(PENDING_2FA_SESSION_KEY, None)
+    db.session.commit()
     return jsonify({"message": "Logged out"}), 200
 
 

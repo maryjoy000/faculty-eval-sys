@@ -100,13 +100,43 @@
         <!-- Two-Factor Authentication -->
         <div id="profile-panel-two-factor" class="profile-panel hidden bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 class="font-semibold text-gray-800 mb-1">Two-Factor Authentication</h2>
-          <p class="text-sm text-gray-500 mb-4">Adds an extra verification step at login. Placeholder — no real SMS/authenticator app integration yet.</p>
+          <p class="text-sm text-gray-500 mb-4">Adds an extra verification step at login using an authenticator app (Google Authenticator, Authy, etc.).</p>
 
-          <label class="flex items-center gap-3">
-            <input type="checkbox" id="two-factor-toggle" class="w-5 h-5 rounded border-gray-300 text-brand focus:ring-brand">
-            <span class="text-sm text-gray-700">Enable Two-Factor Authentication</span>
-          </label>
-          <p id="two-factor-status-msg" class="text-sm text-gray-500 mt-3"></p>
+          <p id="two-factor-status-msg" class="text-sm text-gray-500 mb-4"></p>
+
+          <!-- Off state: start setup -->
+          <div id="two-factor-start" class="hidden">
+            <button type="button" id="two-factor-start-btn" class="btn-primary text-sm">Set Up Two-Factor Authentication</button>
+          </div>
+
+          <!-- Setup flow -->
+          <div id="two-factor-setup" class="hidden space-y-4">
+            <p class="text-sm text-gray-600">1. Scan this QR code with your authenticator app.</p>
+            <div id="two-factor-qr" class="flex justify-center"></div>
+            <p class="text-xs text-gray-500">Can't scan? Enter this key manually: <span id="two-factor-manual-key" class="font-mono font-semibold text-gray-700"></span></p>
+            <p class="text-sm text-gray-600">2. Enter the 6-digit code from the app to confirm.</p>
+            <input type="text" id="two-factor-setup-code" placeholder="123456" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="w-full max-w-xs px-4 py-2.5 border border-gray-300 rounded-lg text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            <p id="two-factor-setup-error" class="hidden text-sm text-red-600"></p>
+            <div class="flex gap-3">
+              <button type="button" id="two-factor-confirm-btn" class="btn-primary text-sm">Confirm &amp; Enable</button>
+              <button type="button" id="two-factor-cancel-btn" class="btn-secondary text-sm">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Backup codes (shown once after enabling) -->
+          <div id="two-factor-backup-codes" class="hidden mt-4">
+            <p class="text-sm text-gray-600 font-medium">Save these backup codes — each works once if you lose your phone:</p>
+            <ul id="two-factor-backup-list" class="grid grid-cols-2 gap-2 font-mono text-sm text-gray-800 mt-2"></ul>
+            <button type="button" id="two-factor-backup-done-btn" class="btn-primary text-sm mt-3">I've Saved Them</button>
+          </div>
+
+          <!-- Enabled state: disable -->
+          <div id="two-factor-disable" class="hidden space-y-3">
+            <p class="text-sm text-gray-600">To turn off two-factor authentication, confirm your password.</p>
+            <input type="password" id="two-factor-disable-password" placeholder="Current password" class="w-full max-w-xs px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            <p id="two-factor-disable-error" class="hidden text-sm text-red-600"></p>
+            <button type="button" id="two-factor-disable-btn" class="btn-secondary text-sm">Disable Two-Factor Authentication</button>
+          </div>
         </div>
 
         <!-- Activity Log -->

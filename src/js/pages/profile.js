@@ -124,28 +124,113 @@ async function finalizePasswordChange(currentPassword, newPassword) {
   renderActivityLog();
 }
 
-// --- Two-Factor Authentication ---
-async function loadTwoFactorToggle() {
-  const profile = await apiGet("/profile");
-  const toggle = document.getElementById("two-factor-toggle");
-  toggle.checked = profile.two_factor_enabled;
-  updateTwoFactorStatusMsg(profile.two_factor_enabled);
-}
-
-function updateTwoFactorStatusMsg(isEnabled) {
+// --- Two-Factor Authentication (real TOTP flow, staff only) ---
+function setTwoFactorStatusMsg(isEnabled) {
   const msg = document.getElementById("two-factor-status-msg");
+  if (!msg) return;
   msg.textContent = isEnabled
     ? "Two-factor authentication is currently ON."
     : "Two-factor authentication is currently OFF.";
 }
 
-function attachTwoFactorToggleListener() {
-  document.getElementById("two-factor-toggle").addEventListener("change", async (event) => {
-    const isEnabled = event.target.checked;
-    await apiPut("/profile", { two_factor_enabled: isEnabled });
-    updateTwoFactorStatusMsg(isEnabled);
-    renderActivityLog();
+function showTwoFactorSection(sectionId) {
+  ["two-factor-start", "two-factor-setup", "two-factor-backup-codes", "two-factor-disable"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", id !== sectionId);
   });
+}
+
+async function refreshTwoFactorPanel() {
+  const profile = await apiGet("/profile");
+  const enabled = Boolean(profile.two_factor_enabled);
+  setTwoFactorStatusMsg(enabled);
+  showTwoFactorSection(enabled ? "two-factor-disable" : "two-factor-start");
+}
+
+async function startTwoFactorSetup() {
+  const errorMsg = document.getElementById("two-factor-setup-error");
+  errorMsg.classList.add("hidden");
+
+  try {
+    const setup = await apiPost("/2fa/setup", {});
+    document.getElementById("two-factor-qr").innerHTML = setup.qr_svg;
+    document.getElementById("two-factor-manual-key").textContent = setup.manual_key;
+    document.getElementById("two-factor-setup-code").value = "";
+    showTwoFactorSection("two-factor-setup");
+  } catch (err) {
+    errorMsg.textContent = err.data && err.data.error
+      ? err.data.error
+      : "Could not start setup. Please try again.";
+    errorMsg.classList.remove("hidden");
+    showTwoFactorSection("two-factor-setup");
+  }
+}
+
+async function confirmTwoFactorSetup() {
+  const codeInput = document.getElementById("two-factor-setup-code");
+  const errorMsg = document.getElementById("two-factor-setup-error");
+  errorMsg.classList.add("hidden");
+
+  try {
+    const result = await apiPost("/2fa/verify-setup", { code: codeInput.value.trim() });
+    setTwoFactorStatusMsg(true);
+    if (result.backup_codes) {
+      const list = document.getElementById("two-factor-backup-list");
+      list.innerHTML = result.backup_codes.map((code) => `<li>${code}</li>`).join("");
+      showTwoFactorSection("two-factor-backup-codes");
+    } else {
+      showTwoFactorSection("two-factor-disable");
+    }
+    renderActivityLog();
+  } catch (err) {
+    errorMsg.textContent = err.data && err.data.error
+      ? err.data.error
+      : "Something went wrong. Please try again.";
+    errorMsg.classList.remove("hidden");
+  }
+}
+
+async function disableTwoFactor() {
+  const passwordInput = document.getElementById("two-factor-disable-password");
+  const errorMsg = document.getElementById("two-factor-disable-error");
+  errorMsg.classList.add("hidden");
+
+  try {
+    await apiPost("/2fa/disable", { password: passwordInput.value });
+    passwordInput.value = "";
+    setTwoFactorStatusMsg(false);
+    showTwoFactorSection("two-factor-start");
+    renderActivityLog();
+  } catch (err) {
+    errorMsg.textContent = err.data && err.data.error
+      ? err.data.error
+      : "Something went wrong. Please try again.";
+    errorMsg.classList.remove("hidden");
+  }
+}
+
+function initTwoFactorPanel() {
+  // Students don't get 2FA (their tab is hidden by applyStudentProfileRestrictions).
+  if (getCurrentRole() === "student") return;
+
+  const startBtn = document.getElementById("two-factor-start-btn");
+  if (!startBtn) return;
+
+  startBtn.addEventListener("click", startTwoFactorSetup);
+  document.getElementById("two-factor-confirm-btn").addEventListener("click", confirmTwoFactorSetup);
+  document.getElementById("two-factor-cancel-btn").addEventListener("click", refreshTwoFactorPanel);
+  document.getElementById("two-factor-backup-done-btn").addEventListener("click", refreshTwoFactorPanel);
+  document.getElementById("two-factor-disable-btn").addEventListener("click", disableTwoFactor);
+
+  const setupCodeInput = document.getElementById("two-factor-setup-code");
+  setupCodeInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      confirmTwoFactorSetup();
+    }
+  });
+
+  refreshTwoFactorPanel();
 }
 
 // --- Activity Log ---
@@ -218,8 +303,7 @@ loadPersonalInfoForm();
 applyStudentProfileRestrictions();
 attachPersonalInfoFormListener();
 attachPasswordFormListener();
-loadTwoFactorToggle();
-attachTwoFactorToggleListener();
+initTwoFactorPanel();
 renderActivityLog();
 attachSessionManagementListener();
 attachPasswordToggleListeners();

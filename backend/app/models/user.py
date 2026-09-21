@@ -24,6 +24,18 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120))
     phone = db.Column(db.String(20))
     two_factor_enabled = db.Column(db.Boolean, default=False)
+    # TOTP secret, Fernet-encrypted (see app/utils/totp.py). Never plaintext.
+    totp_secret = db.Column(db.Text, nullable=True)
+    totp_failed_attempts = db.Column(
+        db.Integer, nullable=False, default=0, server_default="0"
+    )
+    totp_locked_until = db.Column(db.DateTime, nullable=True)
+    # Last consumed TOTP time-counter; rejects code replay within a window.
+    totp_last_counter = db.Column(db.Integer, nullable=True)
+    # Fingerprint + timestamp of the last accepted code; blocks replays
+    # that land in an adjacent time-step (valid_window tolerance).
+    totp_last_code_hash = db.Column(db.String(64), nullable=True)
+    totp_last_code_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

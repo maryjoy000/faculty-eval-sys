@@ -18,6 +18,7 @@ from .routes.notifications import notifications_bp
 from .routes.activity_logs import activity_logs_bp
 from .routes.analytics import analytics_bp
 from .routes.profile import profile_bp
+from .routes.two_factor import two_factor_bp
 from .routes.system_settings import system_settings_bp
 
 def create_app():
@@ -38,6 +39,7 @@ def create_app():
         user, faculty, advisory, student,
         evaluation_type, evaluation_period, rating_scale, weighting, criteria,
         evaluation, notification, faculty_report, activity_log, system_setting,
+        backup_code,
     )  # noqa: F401
 
     from .models.user import User
@@ -71,6 +73,7 @@ def create_app():
     app.register_blueprint(activity_logs_bp, url_prefix="/api/activity-logs")
     app.register_blueprint(analytics_bp, url_prefix="/api/analytics")
     app.register_blueprint(profile_bp, url_prefix="/api/profile")
+    app.register_blueprint(two_factor_bp, url_prefix="/api/2fa")
     app.register_blueprint(system_settings_bp, url_prefix="/api/system-settings")
     
     return app

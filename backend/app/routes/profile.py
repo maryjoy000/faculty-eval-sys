@@ -59,8 +59,9 @@ def update_profile():
     if "phone" in data:
         current_user.phone = data["phone"]
 
-    if "two_factor_enabled" in data:
-        current_user.two_factor_enabled = bool(data["two_factor_enabled"])
+    # NOTE: two_factor_enabled is intentionally NOT writable here — it can
+    # only change through the /api/2fa enrollment/verification endpoints,
+    # which guarantee a TOTP secret exists before the flag flips on.
 
     if "password" in data and data["password"]:
         current_password = data.get("current_password") or ""
