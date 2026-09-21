@@ -155,7 +155,12 @@ server {
     # Static frontend — MUST be the project root (pages reference
     # ../../../dist/output.css from src/pages/...)
     root /var/www/fes;
-    index src/index.html;
+
+    # Pages must load through /src/... so their relative paths (js/,
+    # assets/) resolve correctly; send the bare root there.
+    location = / {
+        return 302 /src/index.html;
+    }
 
     location / {
         try_files $uri $uri/ =404;
@@ -220,6 +225,7 @@ systemctl restart fes
 
 | Symptom | Cause / fix |
 |---|---|
+| Login button does nothing, broken logo/images | Page loaded at bare `/`; open via `/src/index.html` (the config above redirects `/` there). Relative `js/` and `assets/` paths 404 otherwise |
 | `Unknown column 'students.last_name'` | Old DB; run `flask db upgrade` (migration `c4e8b1a7d2f6`) |
 | 2FA codes always invalid | Server clock not NTP-synced (`timedatectl set-ntp true`) |
 | Sentiment endpoint 500 / OOM | Not enough RAM; ensure swap + 8 GB plan, single worker |
