@@ -1,0 +1,46 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Flask / local instance
+instance/
+backend/instance/
+
+# Backend venv - recreate via pip, do not commit
+backend/venv/
+
+# Training-only states - not needed for inference (optimizer.pt is 2GB+ each)
+**/optimizer.pt
+**/scheduler.pt
+**/scaler.pt
+**/rng_state.pth
+
+# ML models - download separately (1GB+ each, GitHub limit is 100MB/file)
+# Server pulls from Hugging Face Hub on startup
+backend/nlp/models/
+
+# DB dumps - do not commit data
+Dump*.sql
+*.sql
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

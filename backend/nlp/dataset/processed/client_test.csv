@@ -1,0 +1,15 @@
+﻿id,text,sentiment,relevance,evaluation_type,source,split_id
+candidate_34862,love u mam,positive,general,student,client,client_test_1
+candidate_34885,lab u mam <3,positive,general,student,client,client_test_2
+candidate_34865,pagmamahal na pinaramdan niya sa lahat ng mga naging student ay walang katumbas dahil ang pagmamahal nayun ay tunay tulad nang pagmamahal sa atin ng ating mga magulang,positive,general,student,client,client_test_3
+candidate_34914,Very good teacher,positive,performance,student,client,client_test_4
+candidate_34918,Hi maam ligaya bait mo po thank you po sa grade hehe fav teacher hehe,positive,general,student,client,client_test_5
+candidate_34875,good example every lesson,positive,performance,student,client,client_test_6
+candidate_34911,napakabait at napakagaling na teacher si ma'am joy,positive,performance,student,client,client_test_7
+candidate_34870,maganda magturo si ma'am joy,positive,performance,student,client,client_test_8
+candidate_34919,Pero maam ligaya wag nio po sana kami pahirapan sa defense,neutral,general,student,client,client_test_9
+candidate_34932,Super bait at palaging nakasmile pag nakaksalubong A humble and very capable teacher,positive,performance,peer,client,client_test_10
+candidate_34877,magaling magturo tsaka mabait,positive,performance,student,client,client_test_11
+candidate_34851,I LOVE U MA'AM JOY,positive,general,student,client,client_test_12
+candidate_34884,magaling magturo thank you mam,positive,performance,student,client,client_test_13
+candidate_34866,"kindness love u maam joy, sana mabasa mo 'to hehehe",positive,general,student,client,client_test_14

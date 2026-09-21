@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <div id="app-faculty-header" data-show-logout="true"></div>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+
+    <div class="mb-6">
+      <button type="button" id="back-to-faculty-dashboard-btn" class="btn-secondary text-sm mb-4">
+        ← Back to Dashboard
+      </button>
+      <h1 class="text-2xl font-bold text-brand">My Profile</h1>
+      <p class="text-sm text-gray-500 mt-1">Manage your personal account settings.</p>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-4">
+
+      <nav class="lg:w-64 flex-shrink-0 bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex lg:flex-col gap-1 overflow-x-auto">
+        <button type="button" class="profile-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="personal-info">Personal Info</button>
+        <button type="button" class="profile-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="password">Change Password</button>
+        <button type="button" class="profile-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="two-factor">Two-Factor Authentication</button>
+        <button type="button" class="profile-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="activity-log">Activity Log</button>
+        <button type="button" class="profile-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="sessions">Session Management</button>
+      </nav>
+
+      <div class="flex-1">
+
+        <div id="profile-panel-personal-info" class="profile-panel bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-semibold text-gray-800 mb-4">Personal Info</h2>
+          <form id="personal-info-form" class="space-y-4 max-w-sm">
+            <div>
+              <label for="profile-name-input" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <input type="text" id="profile-name-input" required
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            </div>
+            <div>
+              <label for="profile-email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" id="profile-email-input" required
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            </div>
+            <div>
+              <label for="profile-phone-input" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <input type="tel" id="profile-phone-input" placeholder="e.g. 0917 123 4567"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            </div>
+            <button type="submit" class="btn-primary">Save Changes</button>
+            <p id="personal-info-saved-msg" class="hidden text-sm text-green-600">Saved!</p>
+          </form>
+        </div>
+
+        <div id="profile-panel-password" class="profile-panel hidden bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-semibold text-gray-800 mb-1">Change Password</h2>
+          <p class="text-sm text-gray-500 mb-4">Placeholder — no real password storage/backend yet.</p>
+          <form id="password-form" class="space-y-4 max-w-sm">
+            <div>
+              <label for="current-password-input" class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+              <div class="relative">
+                <input type="password" id="current-password-input" required class="w-full px-3 py-2 pr-11 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+                <button type="button" class="password-toggle-btn absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="current-password-input" aria-label="Show password">
+                  <svg class="icon-eye w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="icon-eye-off w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61C3.35 8.36 1 12 1 12s4 8 11 8a9.74 9.74 0 0 0 5.39-1.61M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label for="new-password-input" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+              <div class="relative">
+                <input type="password" id="new-password-input" required minlength="8" class="w-full px-3 py-2 pr-11 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+                <button type="button" class="password-toggle-btn absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="new-password-input" aria-label="Show password">
+                  <svg class="icon-eye w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="icon-eye-off w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61C3.35 8.36 1 12 1 12s4 8 11 8a9.74 9.74 0 0 0 5.39-1.61M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label for="confirm-password-input" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+              <div class="relative">
+                <input type="password" id="confirm-password-input" required class="w-full px-3 py-2 pr-11 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+                <button type="button" class="password-toggle-btn absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="confirm-password-input" aria-label="Show password">
+                  <svg class="icon-eye w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="icon-eye-off w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61C3.35 8.36 1 12 1 12s4 8 11 8a9.74 9.74 0 0 0 5.39-1.61M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+            <p id="password-error-msg" class="hidden text-sm text-red-600"></p>
+            <button type="submit" class="btn-primary">Update Password</button>
+            <p id="password-saved-msg" class="hidden text-sm text-green-600">Password updated!</p>
+          </form>
+        </div>
+
+        <div id="profile-panel-two-factor" class="profile-panel hidden bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-semibold text-gray-800 mb-1">Two-Factor Authentication</h2>
+          <p class="text-sm text-gray-500 mb-4">Adds an extra verification step at login. Placeholder — no real SMS/authenticator app integration yet.</p>
+          <label class="flex items-center gap-3">
+            <input type="checkbox" id="two-factor-toggle" class="w-5 h-5 rounded border-gray-300 text-brand focus:ring-brand">
+            <span class="text-sm text-gray-700">Enable Two-Factor Authentication</span>
+          </label>
+          <p id="two-factor-status-msg" class="text-sm text-gray-500 mt-3"></p>
+        </div>
+
+        <div id="profile-panel-activity-log" class="profile-panel hidden bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-semibold text-gray-800 mb-1">Activity Log</h2>
+          <p class="text-sm text-gray-500 mb-4">Recent account activity, most recent first.</p>
+          <div id="activity-log-list" class="divide-y divide-gray-100"></div>
+        </div>
+
+        <div id="profile-panel-sessions" class="profile-panel hidden bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h2 class="font-semibold text-gray-800 mb-1">Session Management</h2>
+          <p class="text-sm text-gray-500 mb-4">Placeholder — no real multi-device session tracking yet.</p>
+          <div class="flex items-center justify-between py-3 border-b border-gray-100 text-sm">
+            <div>
+              <p class="text-gray-800 font-medium">This Device</p>
+              <p class="text-gray-400 text-xs">Current session</p>
+            </div>
+            <span class="text-green-600 text-xs font-medium">Active</span>
+          </div>
+          <button type="button" id="logout-other-devices-btn" class="btn-secondary text-sm mt-4">
+            Log Out of All Other Devices
+          </button>
+          <p id="logout-devices-msg" class="hidden text-sm text-green-600 mt-2">Done — other sessions have been signed out.</p>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/components/faculty-header.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/pages/profile.js"></script>
+</body>
+</html>

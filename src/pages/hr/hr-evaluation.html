@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Evaluation | Faculty Evaluation System</title>
+    <link rel="stylesheet" href="../../../dist/output.css">
+  </head>
+  <body>
+
+    <div id="app-hr-shell" data-active-page="hr-evaluation"></div>
+
+    <template id="page-content-template">
+
+      <!-- ============================================
+          SELECT VIEW: choose which faculty to evaluate
+      ============================================ -->
+      <div id="hr-select-view">
+
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold text-gray-800">HR Evaluation</h1>
+          <p class="text-sm text-gray-500 mt-1">Select a faculty member to begin their evaluation.</p>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="border-b border-gray-300 text-gray-700">
+                  <th class="py-2 pr-4 font-semibold">Faculty Name</th>
+                  <th class="py-2 pr-4 font-semibold">Status</th>
+                  <th class="py-2 font-semibold"></th>
+                </tr>
+              </thead>
+              <tbody id="hr-faculty-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============================================
+          EVALUATION FORM VIEW
+      ============================================ -->
+      <div id="hr-form-view" class="hidden">
+
+        <button type="button" id="hr-back-to-select-btn" class="btn-secondary text-sm mb-4">
+          ← Back to Faculty List
+        </button>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+
+          <h2 class="text-lg font-semibold text-brand mb-1">HR Evaluation Scorecard</h2>
+          <p class="text-sm text-gray-600 mb-2 italic">
+            Criteria placeholder — final HR evaluation instrument still to be finalized.
+            Currently based on: document submission completeness and seminar/training attendance.
+          </p>
+          <p class="text-sm text-gray-700 mb-6">
+            <span class="font-medium text-brand">Evaluating:</span>
+            <span id="hr-faculty-name">--</span>
+          </p>
+
+          <div id="hr-criteria-container"></div>
+
+          <div class="flex items-center justify-end mt-6 pt-4 border-t border-gray-200">
+            <button type="button" id="hr-submit-btn" class="btn-primary">Submit Evaluation</button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </template>
+
+    <script src="../../js/utils/session.js"></script>
+    <script src="../../js/data/profile-data.js"></script>
+    <script src="../../js/data/activity-log.js"></script>
+    <script src="../../js/data/notifications-data.js"></script>
+    <script src="../../js/utils/api.js"></script>
+    <script src="../../js/components/hr-sidebar.js"></script>
+    <script src="../../js/components/confirm-modal.js"></script>
+    <script src="../../js/data/faculty-roster.js"></script>
+    <script src="../../js/data/criteria-data.js"></script>
+    <script src="../../js/pages/hr-evaluation.js"></script>
+  </body>
+</html>

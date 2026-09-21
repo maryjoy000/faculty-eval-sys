@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+  <script src="../../assets/js/chart.umd.js"></script></head>
+<body>
+
+  <!-- Sidebar + top bar inject here, and create the #admin-page-content slot -->
+  <div id="app-admin-shell" data-active-page="dashboard" data-scope-label="Welcome back, Admin"></div>
+
+  <!-- This page's actual content, hidden until moved into the slot above -->
+  <template id="page-content-template">
+
+    <!-- Page header -->
+    <div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
+        <p class="text-sm text-gray-500 mt-1">Quick summary of the Faculty Evaluation System.</p>
+        <p class="text-sm text-gray-500" id="academic-year-display"></p>
+    </div>  
+    </div>
+
+    <!-- Stat cards -->
+    <div id="stat-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+    
+    <!-- Sentiment donut chart + Top Rated Faculty (side by side on desktop) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">Sentiment Analysis Distribution</h2>
+        <p class="text-sm text-gray-500 mb-4">Breakdown of student feedback sentiment across all faculty members</p>
+        <div class="max-w-[220px] mx-auto">
+        <canvas id="sentiment-donut-chart"></canvas>
+        </div>
+        <div id="donut-legend" class="flex justify-center gap-4 mt-4 text-sm"></div>
+        <p class="text-center text-xs text-gray-400 mt-3">BERT Analysis Results</p>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">Top Rated Faculty</h2>
+        <p class="text-sm text-gray-500 mb-4">Based on quantitative scores</p>
+        <div id="top-rated-faculty-list" class="text-sm text-gray-400">No data yet.</div>
+    </div>
+
+    </div>
+
+    <!-- Recent Evaluations -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">Recent Evaluations</h2>
+        <p class="text-sm text-gray-500 mb-4">Latest submissions from students</p>
+        <div id="recent-evaluations-list" class="text-sm text-gray-400">No data yet.</div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">Recent Activity Log</h2>
+        <p class="text-sm text-gray-500 mb-4">Latest actions performed in the system</p>
+        <div id="recent-activity-log-list" class="text-sm text-gray-400">No data yet.</div>
+    </div>
+
+  </template>
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/sidebar.js"></script>
+  <script src="../../js/data/system-settings.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/data/faculty-roster.js"></script>
+  <script src="../../js/pages/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evaluation Criteria | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+</head>
+<body>
+
+  <div id="app-admin-shell" data-active-page="criteria" data-scope-label="Welcome back, Admin"></div>
+
+  <template id="page-content-template">
+
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">Evaluation Criteria</h1>
+      <p class="text-sm text-gray-500 mt-1">Edit the parts, questions, and rating scale for each evaluation type.</p>
+    </div>
+
+    <!-- Evaluation type tabs -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button type="button" class="criteria-type-tab-btn text-sm font-medium px-4 py-2 rounded-lg" data-type="student">Student Evaluation</button>
+      <button type="button" class="criteria-type-tab-btn text-sm font-medium px-4 py-2 rounded-lg" data-type="classroomObservation">Classroom Observation</button>
+      <button type="button" class="criteria-type-tab-btn text-sm font-medium px-4 py-2 rounded-lg" data-type="peerToPeer">Peer-to-Peer</button>
+      <button type="button" class="criteria-type-tab-btn text-sm font-medium px-4 py-2 rounded-lg" data-type="hrEvaluation">HR Evaluation</button>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+    <!-- Parts & Questions editor -->
+    <div class="xl:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="font-semibold text-gray-800">Parts &amp; Questions</h2>
+
+        <div class="flex items-center gap-2">
+          <button type="button" id="add-part-btn" class="btn-secondary text-sm">
+            + Add Part
+          </button>
+
+          <button type="button" id="save-criteria-btn" class="btn-primary text-sm">
+            Save Questions
+          </button>
+        </div>
+      </div>
+
+      <p class="text-sm text-gray-500 mb-4">
+        Each part groups related questions.
+      </p>
+
+      <div
+        id="parts-editor-container"
+        class="space-y-4"
+      ></div>
+    </div>
+
+
+    <!-- Rating Scale editor -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+
+      <div class="mb-5">
+        <h2 class="font-semibold text-gray-800">
+          Rating Scale
+        </h2>
+
+        <p class="text-sm text-gray-500 mt-1">
+          Manage the scale points and equivalence bands used for this evaluation type.
+        </p>
+      </div>
+
+
+      <!-- Scale Points -->
+      <div class="mb-6">
+
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-semibold text-gray-700">
+            Scale Points
+          </h3>
+
+          <button
+            type="button"
+            id="add-scale-label-btn"
+            class="text-xs text-brand font-medium hover:underline"
+          >
+            + Add Point
+          </button>
+        </div>
+
+        <div
+          id="scale-labels-editor"
+          class="space-y-2"
+        ></div>
+
+      </div>
+
+
+      <!-- Equivalence Bands -->
+      <div class="mb-5">
+
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-semibold text-gray-700">
+            Equivalence Bands
+          </h3>
+
+          <button
+            type="button"
+            id="add-equivalent-btn"
+            class="text-xs text-brand font-medium hover:underline"
+          >
+            + Add Band
+          </button>
+        </div>
+
+        <div
+          id="equivalents-editor"
+          class="space-y-2"
+        ></div>
+
+      </div>
+
+
+      <!-- Save -->
+      <button
+        type="button"
+        id="save-scale-btn"
+        class="btn-primary w-full text-sm"
+      >
+        Save Scale
+      </button>
+
+      <p
+        id="scale-saved-msg"
+        class="hidden text-sm text-green-600 mt-2 text-center"
+      >
+        Saved!
+      </p>
+
+    </div>
+
+  </div>
+
+  </template>
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/sidebar.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/pages/criteria-management.js"></script>
+</body>
+</html>
+ 

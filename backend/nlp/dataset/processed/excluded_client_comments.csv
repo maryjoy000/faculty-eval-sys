@@ -1,0 +1,19 @@
+﻿id,text,sentiment,relevance,evaluation_type,source
+sample_27,maganda,neutral,irrelevant,student,client
+sample_32,solid,neutral,irrelevant,student,client
+sample_35,.,neutral,irrelevant,student,client
+sample_36,maam joyyy,neutral,irrelevant,student,client
+sample_42,ambagood,neutral,irrelevant,student,client
+sample_44,labu ma'am,neutral,irrelevant,student,client
+sample_46,hmm,neutral,irrelevant,student,client
+sample_58,xoxoxo,neutral,irrelevant,student,client
+sample_65,Sana makapasa sa PR,neutral,irrelevant,student,client
+sample_71,Jog,neutral,irrelevant,student,client
+sample_72,hehe,neutral,irrelevant,student,client
+sample_1,THANK YOU MA'AM,neutral,general,student,client
+sample_3,ty,neutral,general,student,client
+sample_81,ty ma'am,neutral,general,student,client
+sample_82,ok po,neutral,general,student,client
+sample_95,Nice,positive,general,peer,client
+sample_96,Ok,neutral,general,peer,client
+sample_100,Thank you sir,neutral,general,peer,client

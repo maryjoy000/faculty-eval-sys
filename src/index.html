@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../dist/output.css">
+</head>
+<body>
+
+  <!-- ============================================
+       LOGIN PAGE
+  ============================================ -->
+  <main class="min-h-screen flex flex-col md:flex-row">
+
+    <!-- LEFT: Login form -->
+    <section class="w-full md:w-1/2 flex items-center justify-center p-8 bg-white">
+      <div class="w-full max-w-sm">
+
+        <div class="text-center mb-8">
+            <img src="assets/images/school-logo.jpg" alt="School logo" class="w-24 h-24 mx-auto mb-3 rounded-full object-cover">
+
+            <h1 class="text-xl font-bold text-brand">Headwaters College - Elizabeth Campus</h1>
+            <h2 class="text-lg font-semibold text-brand">Evaluation Portal</h2>
+        </div>
+
+        <form id="login-form" class="space-y-4" novalidate>
+        <div>
+            <label for="username" class="sr-only">Username</label>
+            <input
+            type="text" id="username" name="username" placeholder="Username"
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            >
+            <p id="username-error" class="hidden text-sm text-red-600 mt-1">Username is required.</p>
+        </div>
+
+        <div>
+            <label for="password" class="sr-only">Password</label>
+            <div class="relative">
+            <input
+                type="password" id="password" name="password" placeholder="Password"
+                class="w-full px-4 py-2.5 pr-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            >
+            <button
+                type="button"
+                id="toggle-password"
+                aria-label="Show password"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+                <svg id="icon-eye" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/>
+                <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg id="icon-eye-off" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61C3.35 8.36 1 12 1 12s4 8 11 8a9.74 9.74 0 0 0 5.39-1.61M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+            </button>
+            </div>
+            <p id="password-error" class="hidden text-sm text-red-600 mt-1">Password is required.</p>
+        </div>
+
+        <div class="flex items-center justify-between text-sm">
+            <label class="flex items-center gap-2 text-gray-600">
+            <input type="checkbox" id="remember-me" name="remember-me" class="rounded border-gray-300 text-brand focus:ring-brand">
+            Remember me
+            </label>
+            <a href="#" id="forgot-password-link" class="text-brand hover:underline">Forgot Password?</a>
+        </div>
+
+        <p id="login-error-msg" class="hidden text-sm text-red-600 text-center"></p>
+
+        <button type="submit" class="btn-primary w-full flex items-center justify-center gap-2">
+          Log in <span>→</span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- RIGHT: Welcome / Vision / Mission -->
+    <section class="w-full md:w-1/2 flex items-center justify-center p-8 bg-brand text-white">
+      <div class="w-full max-w-lg">
+        <h2 class="text-3xl font-bold mb-10">Welcome to <br><strong>Headwaters College - Elizabeth Campus</strong></h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div>
+            <h3 class="font-semibold mb-2">Vision</h3>
+            <p class="text-sm text-blue-100 leading-relaxed">In the next decade, Headwaters College envisions to become one of the premiere institutions that caters 21st century education commiting the promotion of the quality of life through enhancement of skills, knowledge, and attitude.</p>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Mission</h3>
+            <p class="text-sm text-blue-100 leading-relaxed">1. Nurture students towards piety, patriotism, and prestige. <br>
+              2. Educate students to be true Filipinos - law-abiding citizens. <br>
+              3. Provide students with competitive and conducive learning environments by providing state-of-the-art facilities, up-to-date learning materials, highly-competitive educators and secured vicinity. <br>
+              4. Strengthen students' attitude towards the community; enhance students' competence in both technical and life-long skills, and update students' knowledge using the 21st century learning approaches. <br>
+              5. Enforce continuous improvements through evaluation of school performances in different services. <br>
+              6. Continue the community engagement as part of the organizational social responsibility.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Forgot Password modal (hidden by default) -->
+    <div id="forgot-password-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+
+      <!-- Backdrop -->
+      <div id="forgot-password-backdrop" class="absolute inset-0 bg-black/40"></div>
+
+      <!-- Modal box -->
+      <div class="relative bg-white rounded-xl shadow-lg w-full max-w-sm mx-4 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Reset Your Password</h2>
+        <p class="text-sm text-gray-500 mb-4">Enter your registered email address and we'll send you a link to reset your password.</p>
+
+        <form id="forgot-password-form" class="space-y-4">
+          <div>
+            <label for="reset-email" class="sr-only">Email</label>
+            <input
+              type="email" id="reset-email" placeholder="Email address" required
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            >
+          </div>
+
+          <div class="flex justify-end gap-3 pt-1">
+            <button type="button" id="cancel-forgot-password" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-primary">Send Reset Link</button>
+          </div>
+        </form>
+
+        <!-- Confirmation message — shown after submitting, hidden by default -->
+        <div id="reset-confirmation" class="hidden text-center py-2">
+          <p class="text-green-600 font-medium mb-1">Reset link sent!</p>
+          <p class="text-sm text-gray-500">Check your email for instructions to reset your password.</p>
+          <button type="button" id="close-confirmation-btn" class="btn-primary mt-4">Close</button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+  <script src="js/data/activity-log.js"></script>
+  <script src="js/data/advisory-data.js"></script>
+  <script src="js/utils/api.js"></script>
+  <script src="js/pages/login.js"></script>
+</body>
+</html>

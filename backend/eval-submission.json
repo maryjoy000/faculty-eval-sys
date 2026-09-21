@@ -1,0 +1,18 @@
+{
+  "evaluation_type": "student",
+  "faculty_id": 1,
+  "responses": [
+    {"question_id": "q1", "rating": 5}, {"question_id": "q2", "rating": 4}, {"question_id": "q3", "rating": 5},
+    {"question_id": "q4", "rating": 4}, {"question_id": "q5", "rating": 3}, {"question_id": "q6", "rating": 5},
+    {"question_id": "q7", "rating": 4}, {"question_id": "q8", "rating": 5}, {"question_id": "q9", "rating": 4},
+    {"question_id": "q10", "rating": 4}, {"question_id": "q11", "rating": 5}, {"question_id": "q12", "rating": 3},
+    {"question_id": "q13", "rating": 4}, {"question_id": "q14", "rating": 5}, {"question_id": "q15", "rating": 4},
+    {"question_id": "q16", "rating": 4}, {"question_id": "q17", "rating": 5}, {"question_id": "q18", "rating": 4},
+    {"question_id": "q19", "rating": 3}, {"question_id": "q20", "rating": 5}, {"question_id": "q21", "rating": 4},
+    {"question_id": "q22", "rating": 4}, {"question_id": "q23", "rating": 5}, {"question_id": "q24", "rating": 4},
+    {"question_id": "q25", "rating": 5}, {"question_id": "q26", "rating": 4}, {"question_id": "q27", "rating": 4},
+    {"question_id": "q28", "rating": 5}, {"question_id": "q29", "rating": 4}, {"question_id": "q30", "rating": 4},
+    {"question_id": "q31", "rating": 5}, {"question_id": "q32", "rating": 3}, {"question_id": "q33", "rating": 5}
+  ],
+  "comments": "Very engaging teacher, explains topics clearly and is always approachable."
+}

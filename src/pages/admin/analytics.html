@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics and Sentiment | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+  <script src="../../assets/js/chart.umd.js"></script>
+</head>
+<body>
+
+  <div
+    id="app-admin-shell"
+    data-active-page="analytics"
+    data-scope-label="Welcome back, Admin"
+  ></div>
+
+  <template id="page-content-template">
+
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">
+        Sentiment Analysis
+      </h1>
+
+      <p class="text-sm text-gray-500 mt-1">
+        Current semester qualitative feedback from student and peer evaluations.
+      </p>
+    </div>
+
+
+    <!-- SENTIMENT DISTRIBUTION -->
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">
+          Student Evaluation Sentiment
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-4">
+          Sentiment distribution from student evaluations
+        </p>
+
+        <div class="max-w-[220px] mx-auto">
+          <canvas id="student-sentiment-chart"></canvas>
+        </div>
+
+        <div
+          id="student-sentiment-legend"
+          class="flex flex-wrap justify-center gap-4 mt-4 text-sm"
+        ></div>
+      </div>
+
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">
+          Peer-to-Peer Sentiment
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-4">
+          Sentiment distribution from peer evaluations
+        </p>
+
+        <div class="max-w-[220px] mx-auto">
+          <canvas id="peer-sentiment-chart"></canvas>
+        </div>
+
+        <div
+          id="peer-sentiment-legend"
+          class="flex flex-wrap justify-center gap-4 mt-4 text-sm"
+        ></div>
+      </div>
+
+    </div>
+
+
+    <!-- SENTIMENT BY SOURCE + RATING VS SENTIMENT -->
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">
+          Sentiment by Evaluation Source
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-4">
+          Comparison of positive, neutral, and negative feedback
+        </p>
+
+        <div class="h-[300px]">
+          <canvas id="sentiment-source-chart"></canvas>
+        </div>
+      </div>
+
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">
+          Average Rating by Sentiment
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-4">
+          Numerical rating compared with detected comment sentiment
+        </p>
+
+        <div class="h-[300px]">
+          <canvas id="rating-sentiment-chart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- COMMON FEEDBACK THEMES + KEY TESTIMONIALS -->
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">
+          Common Feedback Themes
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-4">
+          Recurring topics identified in qualitative comments
+        </p>
+
+        <div
+          id="feedback-themes-list"
+          class="divide-y divide-gray-100"
+        ></div>
+      </div>
+
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">
+          Key Testimonials
+        </h2>
+
+        <p class="text-sm text-gray-500 mb-4">
+          Representative comments from student and peer evaluations
+        </p>
+
+        <div
+          id="key-testimonials-list"
+          class="space-y-4"
+        ></div>
+      </div>
+
+    </div>
+
+
+    <!-- LATEST COMMENTS -->
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+
+      <div class="mb-4">
+        <h2 class="font-semibold text-gray-800">
+          Latest 10 Comments
+        </h2>
+
+        <p class="text-sm text-gray-500">
+          Most recently submitted student and peer feedback
+        </p>
+      </div>
+
+      <div
+        id="latest-comments-list"
+        class="divide-y divide-gray-100"
+      ></div>
+
+    </div>
+
+  </template>
+
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/sidebar.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/data/faculty-roster.js"></script>
+  <script src="../../js/pages/analytics.js"></script>
+
+</body>
+</html>

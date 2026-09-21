@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Dashboard | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <div id="app-faculty-header" data-show-logout="true"></div>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-brand">Faculty Dashboard</h1>
+      <p class="text-sm text-gray-500 mt-1">Overview of your peer evaluation progress.</p>
+    </div>
+
+    <!-- Simple nav since there's no sidebar -->
+    <div class="flex gap-2 mb-6">
+      <a href="faculty-dashboard.html" class="btn-primary text-sm">Dashboard</a>
+      <a href="select-colleague.html" class="btn-secondary text-sm">Peer Evaluation</a>
+      <a href="my-advisory-class.html" class="btn-secondary text-sm">My Advisory Class</a>
+      <a href="my-evaluation.html" class="btn-secondary text-sm">My Evaluation</a>
+    </div>
+
+    <div id="faculty-stat-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">Pending Peer Evaluations</h2>
+        <p class="text-sm text-gray-500 mb-4">Colleagues you haven't evaluated yet this semester.</p>
+        <div id="pending-evaluations-list"></div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h2 class="font-semibold text-gray-800">Completed Peer Evaluations</h2>
+        <p class="text-sm text-gray-500 mb-4">&nbsp;</p>
+        <div id="completed-evaluations-list"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/data/faculty-roster.js"></script>
+  <script src="../../js/data/system-settings.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/components/stepper.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/faculty-header.js"></script>
+  <script src="../../js/pages/faculty-dashboard.js"></script>
+</body>
+</html>

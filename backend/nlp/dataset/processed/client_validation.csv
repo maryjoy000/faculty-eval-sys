@@ -1,0 +1,14 @@
+﻿id,text,sentiment,relevance,evaluation_type,source,split_id
+candidate_34897,Super duper kindness,positive,performance,student,client,client_validation_1
+candidate_34876,thankyou mam may natutunan ako sa reseach HAHAHAHA labyo,positive,general,student,client,client_validation_2
+candidate_34922,Very Good Teacher,positive,performance,peer,client,client_validation_3
+candidate_34915,good teaching and super ganda hehez,positive,performance,student,client,client_validation_4
+candidate_34873,"She is the best teacher when It comes to teaching especially in PR subject, she knows what she need to do and I'm so glad she became our PR/II teacher.",positive,performance,student,client,client_validation_5
+candidate_34858,"very cute and kind this teacher, di pinapabayaan yung student na maiwan sa lesson and magaling magexplain ng lesson",positive,performance,student,client,client_validation_6
+candidate_34905,Very good at teaching and very kind,positive,performance,student,client,client_validation_7
+candidate_34883,thankyou sa pag turo,neutral,general,student,client,client_validation_8
+candidate_34923,"Mabait, palakaibigan, palangit at skilled",positive,performance,peer,client,client_validation_9
+candidate_34861,Maganda si ma'am magturo at mabait hindi siya masungit o madamot sa mga bagay lab u maam joy!!,positive,performance,student,client,client_validation_10
+candidate_34907,ang galing magturo ni ma'am joy so much,positive,performance,student,client,client_validation_11
+candidate_34912,sobrang galing magturo,positive,performance,student,client,client_validation_12
+candidate_34902,"mabait po siya sobra, ty",positive,performance,student,client,client_validation_13

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* ==============================================
+   SOURCE PATHS
+============================================== */
+@source "./**/*.html";
+@source "./js/**/*.js";
+
+/* ==============================================
+   THEME
+============================================== */
+@theme {
+  --color-brand: #023375;       /* primary blue */
+  --color-brand-dark: #355c91;  /* hover/active state */
+  --color-brand-light: #DBEAFE; /* subtle backgrounds/badges */
+
+  --font-sans: Inter, system-ui, sans-serif;
+}
+
+/* ==============================================
+   BASE LAYER
+============================================== */
+@layer base {
+  body {
+    @apply font-sans text-gray-800 bg-gray-50;
+  }
+}
+
+/* ==============================================
+   COMPONENTS LAYER
+============================================== */
+@layer components {
+  .btn-primary {
+    @apply bg-brand text-white font-medium px-4 py-2 rounded-lg hover:bg-brand-dark transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-white text-gray-700 font-medium px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors;
+  }
+}
+
+/* ==============================================
+   PRINT STYLES
+   When printing (Ctrl+P or window.print()), hide everything
+   except the actual report card content.
+============================================== */
+@media print {
+  #app-admin-shell > div > aside,
+  #app-admin-shell > div > div > header,
+  #app-hr-shell > div > aside,
+  #app-hr-shell > div > div > header,
+  .no-print {
+    display: none !important;
+  }
+
+  #admin-page-content,
+  #hr-page-content {
+    padding: 0 !important;
+  }
+
+  body {
+    background: white !important;
+  }
+}

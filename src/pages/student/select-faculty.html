@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Select Faculty | Faculty Evaluation System</title>
+    <link rel="stylesheet" href="../../../dist/output.css" />
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <!-- Reusable header injects here -->
+    <div id="app-header" data-greeting="Student" data-show-logout="true"></div>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
+      <!-- Page title + breadcrumb -->
+      <section class="mb-6">
+        <h1 class="text-2xl font-bold text-brand">Faculty Evaluation Form</h1>
+        <p class="text-gray-500 text-sm mt-1" id="academic-year-display"></p>
+        <div id="evaluation-closed-banner" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-4 mb-4"></div>
+        <div id="announcement-banner" class="hidden bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-lg p-4 mb-4"></div>
+        
+        <!-- Reusable stepper injects here -->
+        <div id="app-stepper" data-active-step="1"></div>
+      </section>
+
+      <!-- Main content card -->
+      <section class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <!-- Privacy notice -->
+        <div
+          class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 space-y-2 mb-6"
+        >
+          <p>
+            All responses collected through this faculty evaluation will be
+            treated with strict confidentiality. Students are not required to
+            provide their names and all submissions will remain completely
+            anonymous.
+          </p>
+          <p>
+            The data gathered will be handled in accordance with the provisions
+            of the
+            <span class="text-red-600 font-medium"
+              >Data Privacy Act of 2012</span
+            >. Any information collected will be securely stored, accessed only
+            by authorized personnel, and used solely for academic and research
+            purposes related to this study.
+          </p>
+          <p>
+            Individual responses will not be disclosed to faculty members or any
+            unauthorized parties. Only summarized and aggregated results will be
+            presented in reports to ensure that no respondent can be identified.
+          </p>
+          <p>
+            By participating in this evaluation, students can be assured that
+            their feedback is protected and will contribute only to research and
+            institutional improvement efforts.
+          </p>
+        </div>
+
+        <!-- Select Faculty Member -->
+        <div>
+          <h2 class="text-lg font-semibold text-brand mb-1">
+            Select Faculty Member
+          </h2>
+          <p class="text-sm text-gray-500 mb-4">
+            Choose the instructor you wish to evaluate for this semester.
+          </p>
+
+          <!-- Student info + table wrapper -->
+          <div class="mb-4 text-sm text-gray-700">
+            <p>
+              <span class="font-medium">LRN:</span>
+              <span id="student-lrn">--</span>
+            </p>
+            <p>
+              <span class="font-medium">Grade:</span>
+              <span id="student-grade">--</span>
+            </p>
+            <p>
+              <span class="font-medium">Section:</span>
+              <span id="student-section">--</span>
+            </p>
+          </div>
+
+            <!-- Faculty table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead>
+                  <tr class="border-b border-gray-300 text-gray-700">
+                    <th class="py-2 pr-4 font-semibold">Faculty</th>
+                    <th class="py-2 pr-4 font-semibold">Subjects</th>
+                    <th class="py-2 pr-4 font-semibold">Status</th>
+                    <th class="py-2"></th>
+                  </tr>
+                </thead>
+                <tbody id="faculty-table-body">
+                  <!-- Rows rendered by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results modal (hidden by default) -->
+      <div
+        id="results-modal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center"
+      >
+        <div
+          id="results-modal-backdrop"
+          class="absolute inset-0 bg-black/40"
+        ></div>
+
+        <div
+          class="relative bg-white rounded-xl shadow-lg w-full max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto"
+        >
+          <div id="results-modal-body"></div>
+          <button
+            type="button"
+            id="close-results-modal-btn"
+            class="btn-secondary w-full mt-4"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <script src="../../js/data/system-settings.js"></script>
+    <script src="../../js/utils/session.js"></script>
+    <script src="../../js/data/profile-data.js"></script>
+    <script src="../../js/data/notifications-data.js"></script>
+    <script src="../../js/utils/api.js"></script>
+    <script src="../../js/components/header.js"></script>
+    <script src="../../js/components/stepper.js"></script>
+    <script src="../../js/data/evaluation-period.js"></script>
+    <script src="../../js/data/announcement-data.js"></script>
+    <script src="../../js/data/activity-log.js"></script>
+    <script src="../../js/components/confirm-modal.js"></script>
+    <script src="../../js/data/faculty-roster.js"></script>
+    <script src="../../js/pages/select-faculty.js"></script>
+  </body>
+</html>

@@ -1,0 +1,61 @@
+﻿id,text,sentiment,relevance,evaluation_type,source,split_id
+candidate_34879,thankyousomuch ma'am sa pagtuturo at pag explain nang maayos at madali intindihin para samin loveyou!!,positive,general,student,client,client_train_1
+candidate_34906,good and very kind,positive,performance,student,client,client_train_2
+candidate_34868,Iloveyouu ma'am thanks sa walang sawang pag unawa saming masisikip. Deserv moto dahil wala kang jowa since day one,positive,general,student,client,client_train_3
+candidate_34887,Mabait siya,positive,performance,student,client,client_train_4
+candidate_34854,She really loves teaching PR. And we understand every lesson she gave. Well she's the kindest but she's also the fiercest when it comes to defense.,positive,performance,student,client,client_train_5
+candidate_34929,Great educator,positive,performance,peer,client,client_train_6
+candidate_34881,Ma'am you're the bestt,positive,general,student,client,client_train_7
+candidate_34910,Loveyaa ma'am,positive,general,student,client,client_train_8
+candidate_34913,labu ma'am,positive,general,student,client,client_train_9
+candidate_34894,THANK YOU FOR ALWAYS TEACHING US AND GIVING LIFE ADVICES 12-HE-E LOVES YOU SO MUCH MAAM JOYYY!!!,positive,general,student,client,client_train_10
+candidate_34846,"you did so well, iloveyou mowm marami kameng natutunan",positive,performance,student,client,client_train_11
+candidate_34895,"She was a great teacher, she always guide us in doing the research",positive,performance,student,client,client_train_12
+candidate_34890,Marami pong salamat sa lahat ng pameryenda at mga tips po nung mga panahong nag ppractice po tayo ng battle of the bands,positive,general,student,client,client_train_13
+candidate_34925,Magaling magturo at marunong makisama,positive,performance,peer,client,client_train_14
+candidate_34848,she's good at teaching,positive,performance,student,client,client_train_15
+candidate_34916,Maganda teacher namin,positive,general,student,client,client_train_16
+candidate_34899,10/10,positive,performance,student,client,client_train_17
+candidate_34900,goods na goods,positive,general,student,client,client_train_18
+candidate_34867,"One of the best teacher starting in grade 11, the best pr teacher, very kind. I love you ma'am Joy",positive,general,student,client,client_train_19
+candidate_34859,I love you ma'am joy youre the best,positive,general,student,client,client_train_20
+candidate_34921,"Magaling si sir sa kung ano ang forte nya, magaling rin makisama",positive,performance,peer,client,client_train_21
+candidate_34850,"Best teacher, masipag at magaling magturo",positive,performance,student,client,client_train_22
+candidate_34886,kind,positive,performance,student,client,client_train_23
+candidate_34863,"speechless sa adviser ko, sobrang ganda pa",neutral,general,student,client,client_train_24
+candidate_34898,Good very goods,positive,general,student,client,client_train_25
+candidate_34920,Mabait at Nag Guguide ng mga Katrabaho,positive,performance,peer,client,client_train_26
+candidate_34871,tinatama ng maayos kung ano yung dapat naming gawin sa aming title,positive,performance,student,client,client_train_27
+candidate_34860,"Hello ma'am Joy. I just want to say thankyou for everything that you've done for use, even though we are very silly u managed to control your temper on us. I hope that God will help you through your problem and thanks again. God bless you ma'am Joy.",positive,general,student,client,client_train_28
+candidate_34874,"I must say, best teacher of headwa",positive,performance,student,client,client_train_29
+candidate_34849,love you ma'am,positive,general,student,client,client_train_30
+candidate_34852,"hi ma'am joy, best teacher ka po apaka bait mo ma'am I love you maam",positive,performance,student,client,client_train_31
+candidate_34878,The best to HAHAHA pagbutihin mo lang po yung ginagawa nyo,positive,general,student,client,client_train_32
+candidate_34908,best teacherr loveu maem,positive,general,student,client,client_train_33
+candidate_34847,"I really appreciate the way she explain opur lesson, it makes it easier to understand",positive,performance,student,client,client_train_34
+candidate_34930,"Isa sa pinakamalupet na teacher sa Headwa, kaso hindi appreciate masyado. Napakasipag mo si Boss David, sana Headwaters would be more appreciative sa mga loyal employees nila. God bless you Sir, Mahal ka namin. Love TL",positive,performance,peer,client,client_train_35
+candidate_34926,Good job!,positive,performance,peer,client,client_train_36
+candidate_34855,sobrang galing mag turo lahat detalyado para mas maintindihan po namin lahat thankyouu maamm joyy ingat ka po palagi,positive,performance,student,client,client_train_37
+candidate_34891,super galing mag turo,positive,performance,student,client,client_train_38
+candidate_34896,Ang galing galing mo mama joyy,positive,general,student,client,client_train_39
+candidate_34904,Mabait,positive,performance,student,client,client_train_40
+candidate_34872,"THE BEST TEACHER MA""AM LIGAYA",positive,performance,student,client,client_train_41
+candidate_34864,"the best teacherrr of all timeee, we lovve you ma'am joy",positive,general,student,client,client_train_42
+candidate_34856,Ty po ma'am sa pag turo at pag guide sa amin sa pr at mag ingat sa sana sa journey mo po,positive,general,student,client,client_train_43
+candidate_34889,veryyy good teacher iloveu maam wag mona po kame pahirapan kasi pagod na pagod naq maam pls,positive,general,student,client,client_train_44
+candidate_34931,"keep up the good work, lumalaban ng patas, Im so proud of u sir",positive,performance,peer,client,client_train_45
+candidate_34853,"Ingat ka palagi maam, you're the best teacher I've met. Thankyou po sa mga aral ingat palagi loveyah",positive,performance,student,client,client_train_46
+candidate_34909,favorite teacher,positive,general,student,client,client_train_47
+candidate_34927,Laging maaga pumasok ok nman magturo,positive,performance,peer,client,client_train_48
+candidate_34869,VERY CUTE TEACHER MAGALING MAGTURO NANLILIBRE,positive,performance,student,client,client_train_49
+candidate_34888,I LOVE HERR >.<,positive,general,student,client,client_train_50
+candidate_34917,"mabait, maganda, and masayahin",positive,performance,student,client,client_train_51
+candidate_34892,Loveyouu ma'am,positive,general,student,client,client_train_52
+candidate_34903,Thankyou for teaching us,neutral,general,student,client,client_train_53
+candidate_34928,professional and down to earth,positive,performance,peer,client,client_train_54
+candidate_34901,MABAIT MAGANDA AT MABANGIZ,positive,general,student,client,client_train_55
+candidate_34857,all goods,positive,general,student,client,client_train_56
+candidate_34882,Mabait si ma'am,positive,performance,student,client,client_train_57
+candidate_34893,"well teaching, so knowledgable I love her teaching skills thanks",positive,performance,student,client,client_train_58
+candidate_34924,Maaasahan sa trabaho,positive,performance,peer,client,client_train_59
+candidate_34880,I hope all teachers have this skill the way how she teach to her students,positive,performance,student,client,client_train_60

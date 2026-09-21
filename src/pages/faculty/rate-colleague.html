@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rate Colleague | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <div id="app-faculty-header" data-show-logout="true"></div>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+
+    <section class="mb-6">
+      <h1 class="text-2xl font-bold text-brand">Peer-to-Peer Evaluation</h1>
+      <p class="text-gray-500 text-sm mt-1" id="academic-year-display"></p>
+      <div id="app-stepper" data-active-step="2"></div>
+    </section>
+
+    <section class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+
+      <h2 class="text-lg font-semibold text-brand mb-1">Quantitative Assessment</h2>
+      <p class="text-sm text-gray-600 mb-2" id="scale-description-text"></p>
+      <p class="text-sm text-gray-700 mb-6">
+        <span class="font-medium text-brand">Evaluating:</span>
+        <span id="evaluating-colleague-name">--</span>
+      </p>
+
+      <div id="rating-parts-container"></div>
+
+      <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+        <div class="flex items-center gap-3">
+          <button type="button" id="back-to-colleague-list-btn" class="btn-secondary hidden">
+            ← Back to Faculty List
+          </button>
+          <button type="button" id="back-btn" class="btn-secondary hidden">
+            Back
+          </button>
+        </div>
+        <button type="button" id="next-btn" class="btn-primary">Next</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/data/system-settings.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/components/faculty-header.js"></script>
+  <script src="../../js/components/stepper.js"></script>
+  <script src="../../js/data/criteria-data.js"></script>
+  <script src="../../js/pages/rate-colleague.js"></script>
+</body>
+</html>

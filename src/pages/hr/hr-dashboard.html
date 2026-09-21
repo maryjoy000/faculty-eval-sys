@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR Dashboard | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+</head>
+<body>
+
+  <!-- Sidebar + top bar inject here, and create the #hr-page-content slot -->
+  <div id="app-hr-shell" data-active-page="dashboard"></div>
+
+<!-- This page's content, moved into the slot above by hr-dashboard.js -->
+<template id="page-content-template">
+
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">HR Dashboard</h1>
+        <p class="text-sm text-gray-500 mt-1">Overview of evaluation progress.</p>
+    </div>
+
+    <div id="hr-stat-cards"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <h2 class="font-semibold text-gray-800">Pending  Evaluations</h2>
+            <p class="text-sm text-gray-500 mb-4">Faculty members who still need an evaluation this semester.</p>
+            <div id="pending-evaluations-list"></div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <h2 class="font-semibold text-gray-800">Completed Evaluations</h2>
+            <p class="text-sm text-gray-500 mb-4">&nbsp;</p>
+            <div id="completed-evaluations-list"></div>
+        </div>
+
+    </div>
+
+</template>
+
+  
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/hr-sidebar.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/data/faculty-roster.js"></script>
+  <script src="../../js/pages/hr-dashboard.js"></script>
+</body>
+</html>
