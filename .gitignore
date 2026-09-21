@@ -34,6 +34,9 @@ backend/nlp/models/
 Dump*.sql
 *.sql
 
+# Local documents (not part of the deployment)
+capstone.docx
+
 # Node
 node_modules/
 npm-debug.log*
