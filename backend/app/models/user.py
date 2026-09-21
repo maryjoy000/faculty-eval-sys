@@ -24,6 +24,11 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120))
     phone = db.Column(db.String(20))
     two_factor_enabled = db.Column(db.Boolean, default=False)
+    # Bumped by "Log out of all other devices"; sessions that still hold
+    # the previous value are rejected by the login manager.
+    session_version = db.Column(
+        db.Integer, nullable=False, default=1, server_default="1"
+    )
     # TOTP secret, Fernet-encrypted (see app/utils/totp.py). Never plaintext.
     totp_secret = db.Column(db.Text, nullable=True)
     totp_failed_attempts = db.Column(

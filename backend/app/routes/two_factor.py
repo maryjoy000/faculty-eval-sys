@@ -8,6 +8,7 @@ from ..extensions import db
 from ..models.backup_code import BackupCode
 from ..models.user import User
 from ..utils.decorators import get_current_role, roles_required
+from ..utils.session_guard import start_session_version
 from ..utils.totp import (
     BACKUP_CODE_COUNT,
     code_fingerprint,
@@ -74,6 +75,7 @@ def _login_payload(user):
 
 def _complete_login(user):
     login_user(user)
+    start_session_version(user)
     session.pop(PENDING_SESSION_KEY, None)
     return jsonify(_login_payload(user)), 200
 
@@ -172,6 +174,7 @@ def verify_setup():
         log_activity("Signed in with two-factor setup", user_id=user.id)
         db.session.commit()
         login_user(user)
+        start_session_version(user)
         session.pop(PENDING_SESSION_KEY, None)
         payload = _login_payload(user)
         payload["backup_codes"] = codes

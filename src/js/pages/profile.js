@@ -250,12 +250,32 @@ async function renderActivityLog() {
 
 // --- Session Management ---
 function attachSessionManagementListener() {
-  document.getElementById("logout-other-devices-btn").addEventListener("click", () => {
-    console.log("Log out of all other devices — placeholder, no real multi-session backend yet.");
+  const button = document.getElementById("logout-other-devices-btn");
+  if (!button) return;
 
+  button.addEventListener("click", async () => {
     const msg = document.getElementById("logout-devices-msg");
-    msg.classList.remove("hidden");
-    setTimeout(() => msg.classList.add("hidden"), 3000);
+
+    try {
+      await apiPost("/auth/logout-all", {});
+
+      if (msg) {
+        msg.textContent = "Done — other sessions have been signed out.";
+        msg.classList.remove("hidden", "text-red-600");
+        setTimeout(() => msg.classList.add("hidden"), 3000);
+      }
+
+      renderActivityLog();
+    } catch (error) {
+      console.error("Failed to sign out other devices:", error);
+
+      if (msg) {
+        msg.textContent = "Unable to sign out other devices. Please try again.";
+        msg.classList.remove("hidden");
+        msg.classList.add("text-red-600");
+        setTimeout(() => msg.classList.add("hidden"), 3000);
+      }
+    }
   });
 }
 

@@ -162,15 +162,17 @@ DEFAULT_CRITERIA = {
         ]},
     ],
     "hrEvaluation": [
-        {"partNumber": 1, "title": "Document Submission Completeness", "questions": [
-            {"id": "p1", "text": "[Placeholder] Submitted all required teaching documents on time."},
-            {"id": "p2", "text": "[Placeholder] Lesson plans/instructional materials are complete and up to date."},
-            {"id": "p3", "text": "[Placeholder] Grading records and reports submitted as required."},
+        {"partNumber": 1, "title": "Document Submission and Records Management", "questions": [
+            {"id": "p1", "text": "Submits required teaching documents (lesson plans, syllabi, and class records) on or before deadlines."},
+            {"id": "p2", "text": "Maintains complete and updated instructional materials for all assigned subjects."},
+            {"id": "p3", "text": "Submits grading records, reports, and other required documents accurately and on time."},
         ]},
-        {"partNumber": 2, "title": "Seminars and Trainings Attended", "questions": [
-            {"id": "p4", "text": "[Placeholder] Attended required school-organized seminars/trainings this semester."},
-            {"id": "p5", "text": "[Placeholder] Applies learnings from trainings to teaching practice."},
-            {"id": "p6", "text": "[Placeholder] Actively participates in professional development opportunities."},
+        {"partNumber": 2, "title": "Professional Development and Work Ethics", "questions": [
+            {"id": "p4", "text": "Attends school-organized seminars, trainings, and orientations regularly."},
+            {"id": "p5", "text": "Applies learnings from trainings and seminars to actual classroom practice."},
+            {"id": "p6", "text": "Participates actively in professional development opportunities."},
+            {"id": "p7", "text": "Demonstrates punctuality, consistency, and professionalism in performing assigned duties."},
+            {"id": "p8", "text": "Cooperates with colleagues and the administration in school activities and programs."},
         ]},
     ],
 }

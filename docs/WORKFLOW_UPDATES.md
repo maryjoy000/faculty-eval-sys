@@ -148,3 +148,77 @@ Data comes from `GET /api/faculty/{linked_faculty_id}` (already returned by
 2. `flask db upgrade` (no schema changes in this update).
 3. `python seed.py` → creates the default Admin/HR accounts.
 4. Log in as Admin → complete 2FA enrollment → change the default passwords.
+
+---
+
+# Follow-up Update — Log Out All Devices & Real HR Questions
+
+## 5. "Log out of all other devices" (implemented)
+
+**Before:** the profile button was a placeholder (`console.log`); all
+sessions stayed valid until each cookie expired.
+
+**After:** session-version invalidation. Every login stores the identity's
+current `session_version` in the Flask session; the login manager checks it
+per request (`app/utils/session_guard.py`). The button calls
+`POST /api/auth/logout-all`, which bumps the column and re-stamps the
+calling session — other devices are signed out immediately, the current
+device stays signed in.
+
+### Workflow
+1. User logs in on Device A and Device B.
+2. On Device A: Profile → Session Management → **Log Out of All Other Devices**.
+3. Device B's next request returns 401 → back to the login page.
+4. Device A continues working; `session_version` (and the activity log
+   entry "Logged out all other devices") records the action.
+
+Works for staff and students alike.
+
+### Files
+| File | Change |
+|---|---|
+| `backend/app/utils/session_guard.py` | New: version-aware `user_loader` + `start_session_version()` |
+| `backend/app/models/user.py`, `student.py` | New `session_version` column |
+| `backend/app/routes/auth.py` | Login stamps the version; new `POST /api/auth/logout-all` |
+| `backend/app/routes/two_factor.py` | 2FA login completion stamps the version |
+| `backend/app/__init__.py` | Login manager uses the version-aware loader |
+| `backend/migrations/versions/d8f3a6b2c9e1_*` | Adds `session_version` (default 1) |
+| `src/js/pages/profile.js` | Button wired to the real endpoint |
+| `backend/tests/test_session_management.py` | New tests (5 cases) |
+
+**Note:** after deploying, existing (pre-update) sessions are invalidated
+once — everyone signs in again and the versions align.
+
+## 6. HR evaluation questions (placeholders replaced)
+
+**Before:** the HR evaluation shipped with `[Placeholder]` questions.
+
+**After:** a complete 8-question set across two parts:
+
+- **Document Submission and Records Management** — p1–p3
+- **Professional Development and Work Ethics** — p4–p8
+
+`seed.py` carries the final set for fresh installs; migration
+`e5a9c1d4f2b7` upgrades already-seeded databases (only rows still marked
+`[Placeholder]` are touched, so manual edits via HR → Evaluation Criteria
+are never overwritten, and the two new questions are appended once).
+
+If the school provides its own official HR form later, edit the questions
+via **HR → Evaluation Criteria** — no code change needed.
+
+### Files
+| File | Change |
+|---|---|
+| `backend/seed.py` | Final HR question set |
+| `backend/migrations/versions/e5a9c1d4f2b7_*` | Data upgrade for existing databases |
+
+## Deployment steps for this update
+
+```bash
+cd /var/www/fes
+git pull
+cd backend && source venv/bin/activate
+flask --app run.py db upgrade
+systemctl restart fes
+```
+

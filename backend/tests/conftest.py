@@ -56,16 +56,11 @@ def create_test_app():
 
     @login_manager.user_loader
     def load_user(composite_id):
-        kind, _, raw_id = composite_id.partition(":")
-        try:
-            numeric_id = int(raw_id)
-        except (ValueError, TypeError):
-            return None
-        if kind == "user":
-            return User.query.get(numeric_id)
-        if kind == "student":
-            return Student.query.get(numeric_id)
-        return None
+        # Same session-version guard as the real app so "log out of all
+        # other devices" is exercised end to end.
+        from app.utils.session_guard import load_user_for_session
+
+        return load_user_for_session(composite_id)
 
     @login_manager.unauthorized_handler
     def unauthorized():

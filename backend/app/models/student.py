@@ -27,6 +27,11 @@ class Student(db.Model, UserMixin):
     password_hash = db.Column(db.String(255), nullable=True)
     email = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(20), nullable=True)
+    # Bumped by "Log out of all other devices"; sessions that still hold
+    # the previous value are rejected by the login manager.
+    session_version = db.Column(
+        db.Integer, nullable=False, default=1, server_default="1"
+    )
 
     advisory_assignment_id = db.Column(
         db.Integer, db.ForeignKey("advisory_assignments.id"), nullable=False

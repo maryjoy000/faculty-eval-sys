@@ -44,15 +44,13 @@ def create_app():
 
     from .models.user import User
     from .models.student import Student
+    from .utils.session_guard import load_user_for_session
 
     @login_manager.user_loader
     def load_user(composite_id):
-        kind, _, raw_id = composite_id.partition(":")
-        if kind == "user":
-            return User.query.get(int(raw_id))
-        if kind == "student":
-            return Student.query.get(int(raw_id))
-        return None
+        # Validates the session version so "log out of all other devices"
+        # can invalidate stale sessions.
+        return load_user_for_session(composite_id)
 
     @login_manager.unauthorized_handler
     def unauthorized():
