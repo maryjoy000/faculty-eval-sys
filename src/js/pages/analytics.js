@@ -4,7 +4,11 @@
 
 function mountPageContent() {
   const template = document.getElementById("page-content-template");
-  const slot = document.getElementById("admin-page-content");
+  // Works for both shells: admin pages use #admin-page-content, HR pages
+  // use #hr-page-content.
+  const slot =
+    document.getElementById("admin-page-content") ||
+    document.getElementById("hr-page-content");
 
   if (template && slot) {
     slot.appendChild(template.content.cloneNode(true));

@@ -138,5 +138,80 @@ async function loadHrDashboard() {
   }
 }
 
+async function loadHrSentiment() {
+  try {
+    const data = await apiGet("/evaluations/dashboard-sentiment");
+
+    const averageEl = document.getElementById("hr-sentiment-average");
+
+    if (averageEl) {
+      averageEl.textContent =
+        data.average_sentiment_score != null
+          ? Number(data.average_sentiment_score).toFixed(3)
+          : "—";
+    }
+
+    renderHrSentimentDonut(
+      data.positive || 0,
+      data.neutral || 0,
+      data.negative || 0
+    );
+  } catch (error) {
+    console.error("Failed to load HR sentiment data:", error);
+  }
+}
+
+function renderHrSentimentDonut(positive, neutral, negative) {
+  const canvas = document.getElementById("hr-sentiment-donut-chart");
+  const legendContainer = document.getElementById("hr-donut-legend");
+
+  if (!canvas || typeof Chart === "undefined") return;
+
+  const labels = ["Positive", "Neutral", "Negative"];
+  const values = [positive, neutral, negative];
+  const colors = ["#16A34A", "#F59E0B", "#DC2626"];
+
+  new Chart(canvas, {
+    type: "doughnut",
+
+    data: {
+      labels,
+
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderWidth: 0
+      }]
+    },
+
+    options: {
+      cutout: "70%",
+
+      plugins: {
+        legend: {
+          display: false
+        }
+      }
+    }
+  });
+
+  if (legendContainer) {
+    legendContainer.innerHTML = labels
+      .map(
+        (label, index) => `
+          <span class="flex items-center gap-2 text-gray-600">
+            <span
+              class="inline-block w-3 h-3 rounded-full"
+              style="background-color: ${colors[index]}"
+            ></span>
+            ${label}: ${values[index]}
+          </span>
+        `
+      )
+      .join("");
+  }
+}
+
 mountPageContent();
 loadHrDashboard();
+loadHrSentiment();

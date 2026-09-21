@@ -367,11 +367,73 @@ async function renderEvaluationLists() {
   }
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function renderMySubjectsAndSections() {
+  const subjectsList = document.getElementById("my-subjects-list");
+  const sectionsList = document.getElementById("my-sections-list");
+
+  if (!subjectsList || !sectionsList) return;
+
+  if (!loggedInFacultyId) {
+    subjectsList.innerHTML = `<li class="text-gray-400">No linked faculty record.</li>`;
+    sectionsList.innerHTML = `<li class="text-gray-400">No linked faculty record.</li>`;
+    return;
+  }
+
+  try {
+    const faculty = await apiGet(`/faculty/${loggedInFacultyId}`);
+
+    const subjects = Array.isArray(faculty.subjects) ? faculty.subjects : [];
+    const sections = Array.isArray(faculty.sections) ? faculty.sections : [];
+
+    subjectsList.innerHTML = subjects.length
+      ? subjects
+          .map(
+            (subject) => `
+              <li>
+                ${
+                  subject.code
+                    ? `<span class="font-mono text-xs text-gray-500">${escapeHtml(subject.code)}</span> — `
+                    : ""
+                }
+                ${escapeHtml(subject.name)}
+              </li>
+            `
+          )
+          .join("")
+      : `<li class="text-gray-400">No subjects assigned yet.</li>`;
+
+    sectionsList.innerHTML = sections.length
+      ? sections
+          .map(
+            (section) => `
+              <li>${escapeHtml(`${section.grade_level} ${section.name}`)}</li>
+            `
+          )
+          .join("")
+      : `<li class="text-gray-400">No sections assigned yet.</li>`;
+  } catch (error) {
+    console.error("Failed to load my subjects and sections:", error);
+
+    subjectsList.innerHTML = `<li class="text-red-600">Unable to load.</li>`;
+    sectionsList.innerHTML = `<li class="text-red-600">Unable to load.</li>`;
+  }
+}
+
 async function initFacultyDashboard() {
   try {
     await loadFacultyDashboardData();
     await renderFacultyStatCards();
     await renderEvaluationLists();
+    await renderMySubjectsAndSections();
   } catch (error) {
     console.error(
       "Failed to load faculty dashboard:",

@@ -1,6 +1,7 @@
 """
 One-time seed script: evaluation types, criteria parts + questions,
-rating scales, and the default weighting row.
+rating scales, the default weighting row, and the bootstrap Admin + HR
+login accounts.
  
 Data copied EXACTLY from src/js/data/criteria-data.js's DEFAULT_CRITERIA /
 DEFAULT_SCALE, and weighting-data.js's defaults — not invented.
@@ -8,15 +9,23 @@ DEFAULT_SCALE, and weighting-data.js's defaults — not invented.
 Usage (from backend/, with the venv active):
     .\\venv\\Scripts\\python.exe seed.py
  
-Safe to re-run: skips seeding if evaluation_types already has rows.
+Safe to re-run: skips config seeding if evaluation_types already has rows,
+and creates each default account only when no user with that role exists.
+
+Default accounts (override via .env before running):
+    DEFAULT_ADMIN_USERNAME / DEFAULT_ADMIN_PASSWORD
+    DEFAULT_HR_USERNAME / DEFAULT_HR_PASSWORD
 """
  
+import os
+
 from app import create_app
 from app.extensions import db
 from app.models.evaluation_type import EvaluationType
 from app.models.criteria import EvaluationCriteria, EvaluationQuestion
 from app.models.rating_scale import RatingScale
 from app.models.weighting import EvaluationWeighting
+from app.models.user import User
  
 EVALUATION_TYPES = [
     ("student", "Student Evaluation"),
@@ -184,9 +193,60 @@ DEFAULT_SCALE = {
 }
  
  
+DEFAULT_ADMIN_USERNAME = os.environ.get("DEFAULT_ADMIN_USERNAME", "admin-jane")
+DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "Secret123!")
+DEFAULT_HR_USERNAME = os.environ.get("DEFAULT_HR_USERNAME", "hr-bob")
+DEFAULT_HR_PASSWORD = os.environ.get("DEFAULT_HR_PASSWORD", "HrPass1!")
+
+
+def seed_default_accounts():
+    """Create the first Admin and HR login accounts when missing.
+
+    A fresh database has no users at all, and account creation is itself
+    admin-only — without this bootstrap there is no way to log in for the
+    first time. One check per role keeps re-runs and existing databases
+    safe (no duplicates, no credential overwrites).
+    """
+    created = []
+
+    if not User.query.filter_by(role="admin").first():
+        admin = User(
+            username=DEFAULT_ADMIN_USERNAME,
+            role="admin",
+            status="active",
+            name="System Admin",
+        )
+        admin.set_password(DEFAULT_ADMIN_PASSWORD)
+        db.session.add(admin)
+        created.append(f"admin '{DEFAULT_ADMIN_USERNAME}'")
+
+    if not User.query.filter_by(role="hr").first():
+        hr = User(
+            username=DEFAULT_HR_USERNAME,
+            role="hr",
+            status="active",
+            name="HR Officer",
+        )
+        hr.set_password(DEFAULT_HR_PASSWORD)
+        db.session.add(hr)
+        created.append(f"hr '{DEFAULT_HR_USERNAME}'")
+
+    if created:
+        db.session.commit()
+        print("Default accounts created: " + ", ".join(created))
+        print("WARNING: log in and change these passwords right away.")
+        print("Admins must also complete two-factor setup on first login.")
+    else:
+        print("Default accounts already exist — skipping.")
+
+
 def seed():
     app = create_app()
     with app.app_context():
+        # Runs even when evaluation config is already seeded, so an
+        # existing database can still gain the bootstrap accounts.
+        seed_default_accounts()
+
         if EvaluationType.query.first():
             print("Already seeded (evaluation_types has rows) — skipping.")
             return
@@ -226,7 +286,6 @@ def seed():
  
         db.session.commit()
         print("Seed complete: 4 evaluation types, criteria+questions, rating scales, weighting row.")
- 
  
 if __name__ == "__main__":
     seed()

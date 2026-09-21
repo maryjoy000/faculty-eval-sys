@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HR Dashboard | Faculty Evaluation System</title>
   <link rel="stylesheet" href="../../../dist/output.css">
+  <script src="../../assets/js/chart.umd.js"></script>
 </head>
 <body>
 
@@ -20,6 +21,21 @@
     </div>
 
     <div id="hr-stat-cards"></div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
+        <h2 class="font-semibold text-gray-800">Sentiment Analysis Distribution</h2>
+        <p class="text-sm text-gray-500 mb-4">Breakdown of student and peer feedback sentiment across all faculty members.</p>
+
+        <div class="max-w-[220px] mx-auto">
+            <canvas id="hr-sentiment-donut-chart"></canvas>
+        </div>
+
+        <div id="hr-donut-legend" class="flex justify-center flex-wrap gap-4 mt-4 text-sm"></div>
+
+        <p class="text-center text-xs text-gray-400 mt-3">
+            Average sentiment score: <span id="hr-sentiment-average">—</span>
+        </p>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 

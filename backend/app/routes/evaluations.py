@@ -16,6 +16,7 @@ from ..services.aggregation_service import get_faculty_evaluation_summary, get_c
 from ..services.report_service import is_released, mark_viewed
 from ..services.activity_service import log_activity
 from ..utils.sentiment import analyze_sentiment
+from ..utils.evaluation_rules import sanitize_comments
 from ..models.evaluation_period import EvaluationPeriod
 
 evaluations_bp = Blueprint("evaluations", __name__)
@@ -537,6 +538,10 @@ def submit_evaluation():
     ratings = [r["rating"] for r in responses]
     overall_average = sum(ratings) / len(ratings)
     overall_rating_pct = (overall_average / scale_max) * 100
+
+    # Classroom observation is rating-only; comments are dropped
+    # server-side regardless of what the client sends.
+    comments = sanitize_comments(type_code, comments)
     sentiment = analyze_sentiment(comments)
 
     evaluation = Evaluation(
