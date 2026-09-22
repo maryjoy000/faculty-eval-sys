@@ -203,7 +203,10 @@ document.getElementById("comments-textarea").addEventListener("input", (e) => {
   sessionStorage.setItem("peerDraftComment", e.target.value);
 });
 
-document.getElementById("academic-year-display").textContent = getAcademicYearDisplay();
+(async () => {
+  await loadSystemSettings();
+  document.getElementById("academic-year-display").textContent = getAcademicYearDisplay();
+})();
 renderEvaluatingColleagueName();
 restoreDraftComment();
 loadPeerCriteria();

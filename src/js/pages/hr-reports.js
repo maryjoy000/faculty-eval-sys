@@ -239,6 +239,7 @@ mountPageContent();
 attachDetailViewListeners();
 
 (async () => {
+  await loadSystemSettings();
   await renderReportsTable();
   openReportFromQueryParam();
 })();

@@ -471,17 +471,15 @@ if (scaleDescriptionEl) {
 }
 
 // ============================================
-// Academic year
+// Academic year (loaded from System Management)
 // ============================================
-const academicYearEl =
-  document.getElementById(
-    "academic-year-display"
-  );
-
-if (academicYearEl) {
-  academicYearEl.textContent =
-    getAcademicYearDisplay();
-}
+(async () => {
+  await loadSystemSettings();
+  const el = document.getElementById("academic-year-display");
+  if (el) {
+    el.textContent = getAcademicYearDisplay();
+  }
+})();
 
 // ============================================
 // Initialize

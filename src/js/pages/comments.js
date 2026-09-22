@@ -212,6 +212,8 @@ function renderAnnouncementBanner() {
 // --- Initialize page ---
 async function initializeCommentsPage() {
   try {
+    await loadSystemSettings();
+    await loadAnnouncement();
     await loadStudentCriteria();
 
     document.getElementById("academic-year-display").textContent =

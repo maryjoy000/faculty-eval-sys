@@ -210,7 +210,11 @@ function renderAnnouncementBanner() {
   }
 }
 
-document.getElementById("academic-year-display").textContent = getAcademicYearDisplay();
-renderAnnouncementBanner();
+(async () => {
+  await loadSystemSettings();
+  await loadAnnouncement();
+  document.getElementById("academic-year-display").textContent = getAcademicYearDisplay();
+  renderAnnouncementBanner();
+})();
 renderColleagueTable();
 attachResultsModalListeners();

@@ -323,16 +323,15 @@ function renderAnnouncementBanner() {
   }
 }
 
-// --- Academic year ---
-const academicYearDisplay =
-  document.getElementById(
-    "academic-year-display"
-  );
-
-if (academicYearDisplay) {
-  academicYearDisplay.textContent =
-    getAcademicYearDisplay();
+// --- Academic year (loaded from System Management; refresh after fetch) ---
+async function refreshAcademicYearDisplay() {
+  await loadSystemSettings();
+  const el = document.getElementById("academic-year-display");
+  if (el) {
+    el.textContent = getAcademicYearDisplay();
+  }
 }
+refreshAcademicYearDisplay();
 
 // --- Initialize page ---
 const backBtn =
@@ -399,5 +398,8 @@ if (scaleDescriptionText) {
 
 // --- Initial page setup ---
 renderEvaluatingFacultyName();
-renderAnnouncementBanner();
+(async () => {
+  await loadAnnouncement();
+  renderAnnouncementBanner();
+})();
 loadStudentCriteria();

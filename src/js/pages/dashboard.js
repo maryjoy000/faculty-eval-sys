@@ -281,7 +281,10 @@ loadTopRatedFaculty();
 loadRecentEvaluations();
 loadRecentActivityLog();
 
-const academicYearDisplay = document.getElementById("academic-year-display");
-if (academicYearDisplay) {
-  academicYearDisplay.textContent = getAcademicYearDisplay();
-}
+(async () => {
+  await loadSystemSettings();
+  const el = document.getElementById("academic-year-display");
+  if (el) {
+    el.textContent = getAcademicYearDisplay();
+  }
+})();

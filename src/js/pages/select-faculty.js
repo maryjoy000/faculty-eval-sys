@@ -354,6 +354,9 @@ async function loadStudentInfo() {
 
 async function initializeSelectFacultyPage() {
 
+  await loadSystemSettings();
+  await loadAnnouncement();
+
   document.getElementById(
     "academic-year-display"
   ).textContent =
@@ -373,7 +376,5 @@ async function initializeSelectFacultyPage() {
 
   attachResultsModalListeners();
 }
-
-initializeSelectFacultyPage();
 
 initializeSelectFacultyPage();

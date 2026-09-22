@@ -293,6 +293,7 @@ async function openReportFromQueryParam() {
 async function initAdminReports() {
   mountPageContent();
 
+  await loadSystemSettings();
   await renderReportsTable();
 
   attachDetailViewListeners();

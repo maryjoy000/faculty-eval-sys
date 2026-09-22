@@ -314,7 +314,7 @@ function buildReportDocumentHeaderHtml(faculty, subtitle, showPeriod) {
         </span>
         ${period ? `
           <span class="text-[10px] text-gray-600">
-            <span class="font-medium">Period:</span> SY ${period.academicYear || "____"}, ${period.semester || "____"}
+            <span class="font-medium">Period:</span> SY ${period.academicYear || "____"}, ${getSemesterLabel(period.semester) || "____"}
           </span>
         ` : ""}
       </div>
@@ -1128,7 +1128,7 @@ function buildCombinedSummaryHtml(faculty) {
   const overallEquivalent = combinedAverage !== null ? getScaleEquivalent("hrEvaluation", combinedAverage) : null;
 
   return `
-    ${buildReportDocumentHeaderHtml(faculty, "Combined Evaluation Summary")}
+    ${buildReportDocumentHeaderHtml(faculty, "Combined Evaluation Summary", true)}
 
     ${buildClassroomDomainTableHtml(classroomData)}
     ${buildNonClassroomSectionHtml(studentData, peerData, hrData)}
