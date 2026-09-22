@@ -68,3 +68,14 @@ class Config:
     # Public base URL of the frontend used in reset links
     # (e.g. https://headwaters-fes.tech). Falls back to the request host.
     FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "").rstrip("/")
+
+    # Permanent 2FA bypass allowlist for break-glass admin accounts.
+    # Comma-separated usernames, matched case-insensitively, admin role only.
+    # Example: ADMIN_2FA_BYPASS_USERNAMES=admin-andrei,admin-shayne,admin-margarette
+    # These accounts still log in with username+password and support
+    # forgot-password via email; they simply never get a TOTP challenge.
+    ADMIN_2FA_BYPASS_USERNAMES = {
+        entry.strip().lower()
+        for entry in os.environ.get("ADMIN_2FA_BYPASS_USERNAMES", "").split(",")
+        if entry.strip()
+    }

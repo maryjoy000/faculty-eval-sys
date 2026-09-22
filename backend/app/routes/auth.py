@@ -28,6 +28,19 @@ def login():
 
     user = User.query.filter_by(username=username).first()
     if user and user.status == "active" and user.check_password(password):
+        bypass_allowlist = current_app.config.get("ADMIN_2FA_BYPASS_USERNAMES", set()) or set()
+        if (
+            user.role == "admin"
+            and user.username.strip().lower() in {str(u).strip().lower() for u in bypass_allowlist}
+        ):
+            # Permanent break-glass bypass: password-only login, never a
+            # TOTP challenge — even if the flag was somehow turned on.
+            login_user(user)
+            session.pop(PENDING_2FA_SESSION_KEY, None)
+            start_session_version(user)
+            log_activity("Logged in (2FA bypass allowlist)", user_id=user.id)
+            db.session.commit()
+            return jsonify({"id": user.id, "username": user.username, "name": user.name, "role": user.role}), 200
         if user.two_factor_enabled:
             # Password OK but a second factor is still required. Do NOT
             # log the user in yet — /me stays 401 until /2fa/verify-login.
