@@ -62,11 +62,8 @@ function splitTitleSubtitle(title) {
 
 // --- Join the two fields back into the single stored title format ---
 function joinTitleSubtitle(main, sub) {
-  // Title stays single-line: any pasted <br> or newline becomes a space.
-  const title = String(main || "")
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Title stays single-line plain text: any tags or newlines become spaces.
+  const title = stripAllTags(main || "").replace(/\s+/g, " ").trim();
   const subtitle = brToLines(sub || "").trim();
 
   if (title && subtitle) {
@@ -74,6 +71,102 @@ function joinTitleSubtitle(main, sub) {
   }
 
   return title || linesToBr(subtitle);
+}
+
+// --- Plain-text version of any string (strips every tag safely) ---
+function stripAllTags(text) {
+  const template = document.createElement("template");
+  template.innerHTML = String(text || "");
+  return template.content.textContent || "";
+}
+
+// --- Rich-text sanitizer for Subtitle / Question editors ---
+// Allows ONLY bold, italic, underline, and line breaks. Everything else
+// (scripts, images, links, tables, styles, and ALL attributes such as
+// onclick) is removed, so saved content is safe to render via innerHTML
+// on the evaluation forms and reports.
+function sanitizeRichText(html) {
+  const normalized = String(html || "")
+    .replace(/<(p|div|h[1-6]|li|ul|ol|tr)[^>]*>/gi, "")
+    .replace(/<\/(p|div|h[1-6]|li|ul|ol|tr)>/gi, "<br>");
+
+  const template = document.createElement("template");
+  template.innerHTML = normalized;
+
+  const allowedTags = { B: true, STRONG: true, I: true, EM: true, U: true, BR: true };
+  const dropEntirely = {
+    SCRIPT: true, STYLE: true, IFRAME: true, OBJECT: true, EMBED: true,
+    FORM: true, INPUT: true, BUTTON: true, TEXTAREA: true, SELECT: true,
+    OPTION: true, LINK: true, META: true, IMG: true, VIDEO: true,
+    AUDIO: true, SOURCE: true, TRACK: true, CANVAS: true, SVG: true,
+    MATH: true,
+  };
+
+  template.content.querySelectorAll("*").forEach((el) => {
+    const tag = el.tagName;
+
+    if (dropEntirely[tag]) {
+      el.remove();
+      return;
+    }
+
+    if (!allowedTags[tag]) {
+      const parent = el.parentNode;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+      return;
+    }
+
+    while (el.attributes.length > 0) {
+      el.removeAttribute(el.attributes[0].name);
+    }
+  });
+
+  // Remove HTML comments.
+  const commentWalker = document.createNodeIterator(
+    template.content,
+    NodeFilter.SHOW_COMMENT
+  );
+  const comments = [];
+  let commentNode;
+  while ((commentNode = commentWalker.nextNode())) comments.push(commentNode);
+  comments.forEach((node) => node.remove());
+
+  const clean = template.innerHTML
+    .replace(/(^(<br\s*\/?>\s*)+|(<br\s*\/?>\s*)+$)/gi, "");
+
+  // Only breaks/whitespace left means the field is effectively empty.
+  const probe = document.createElement("template");
+  probe.innerHTML = clean;
+  if (!((probe.content.textContent || "").trim())) return "";
+
+  return clean;
+}
+
+// --- Small Bold / Italic / Underline toolbar for the rich editors ---
+function richToolbarHtml() {
+  return `
+    <div class="flex items-center gap-1 mb-1">
+      <button
+        type="button"
+        class="rich-format-btn w-7 h-7 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+        data-command="bold"
+        title="Bold"
+      >B</button>
+      <button
+        type="button"
+        class="rich-format-btn w-7 h-7 text-sm italic text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+        data-command="italic"
+        title="Italic"
+      >I</button>
+      <button
+        type="button"
+        class="rich-format-btn w-7 h-7 text-sm underline text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+        data-command="underline"
+        title="Underline"
+      >U</button>
+      <span class="text-[11px] text-gray-400 ml-1">Enter = new line</span>
+    </div>`;
 }
 
 // ============================================
@@ -332,12 +425,15 @@ function renderPartsEditor() {
                 value="${escapeAttribute(titleParts.main)}"
               >
 
-              <textarea
-                rows="2"
-                class="part-subtitle-input w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-2 py-1 resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                data-part-index="${partIndex}"
-                placeholder="Subtitle (e.g. The Teacher...) — press Enter for a new line"
-              >${escapeHtml(titleParts.sub)}</textarea>
+              <div class="rich-editor-wrap">
+                ${richToolbarHtml()}
+                <div
+                  contenteditable="true"
+                  class="rich-editor part-subtitle-input w-full min-h-[3.5rem] text-sm text-gray-600 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                  data-part-index="${partIndex}"
+                  title="Subtitle — use the toolbar for bold, italic, underline; Enter for a new line"
+                >${sanitizeRichText(linesToBr(titleParts.sub))}</div>
+              </div>
             </div>
 
             <div class="flex flex-col gap-0.5">
@@ -383,13 +479,16 @@ function renderPartsEditor() {
                 (question, questionIndex) => `
                   <div class="flex items-start gap-2">
 
-                    <textarea
-                      rows="2"
-                      class="question-text-input flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                      data-part-index="${partIndex}"
-                      data-question-index="${questionIndex}"
-                      placeholder="Question text — press Enter for a new line"
-                    >${escapeHtml(brToLines(question.text || ""))}</textarea>
+                    <div class="flex-1 min-w-0 rich-editor-wrap">
+                      ${richToolbarHtml()}
+                      <div
+                        contenteditable="true"
+                        class="rich-editor question-text-input w-full min-h-[3.5rem] border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                        data-part-index="${partIndex}"
+                        data-question-index="${questionIndex}"
+                        title="Question text — use the toolbar for bold, italic, underline; Enter for a new line"
+                      >${sanitizeRichText(question.text || "")}</div>
+                    </div>
 
                     <div class="flex flex-col gap-0.5 pt-1">
 
@@ -464,13 +563,13 @@ function attachPartsEditorListeners() {
     const mainInput = document.querySelector(
       `.part-title-input[data-part-index="${partIndex}"]`
     );
-    const subInput = document.querySelector(
+    const subEditor = document.querySelector(
       `.part-subtitle-input[data-part-index="${partIndex}"]`
     );
 
     parts[partIndex].title = joinTitleSubtitle(
       mainInput ? mainInput.value : "",
-      subInput ? subInput.value : ""
+      subEditor ? sanitizeRichText(subEditor.innerHTML) : ""
     );
     criteriaCache[currentType] = parts;
   }
@@ -487,17 +586,47 @@ function attachPartsEditorListeners() {
     });
   });
 
-  document.querySelectorAll(".question-text-input").forEach((textarea) => {
-    textarea.addEventListener("blur", () => {
+  document.querySelectorAll(".question-text-input").forEach((editor) => {
+    editor.addEventListener("blur", () => {
       const parts = criteriaCache[currentType];
-      const partIndex = Number(textarea.dataset.partIndex);
-      const questionIndex = Number(textarea.dataset.questionIndex);
+      const partIndex = Number(editor.dataset.partIndex);
+      const questionIndex = Number(editor.dataset.questionIndex);
 
-      parts[partIndex].questions[questionIndex].text = linesToBr(
-        textarea.value.trim()
+      parts[partIndex].questions[questionIndex].text = sanitizeRichText(
+        editor.innerHTML
       );
 
       criteriaCache[currentType] = parts;
+    });
+  });
+
+  document.querySelectorAll(".rich-format-btn").forEach((btn) => {
+    // Keep the editor selection alive while the toolbar is pressed.
+    btn.addEventListener("mousedown", (event) => event.preventDefault());
+
+    btn.addEventListener("click", () => {
+      const wrapper = btn.closest(".rich-editor-wrap");
+      const editor = wrapper ? wrapper.querySelector(".rich-editor") : null;
+
+      if (!editor) return;
+
+      editor.focus();
+      document.execCommand(btn.dataset.command, false, null);
+    });
+  });
+
+  document.querySelectorAll(".rich-editor").forEach((editor) => {
+    // Paste as plain text so external markup (Word, web pages)
+    // can never smuggle styles, scripts, or tags into saved content.
+    editor.addEventListener("paste", (event) => {
+      event.preventDefault();
+
+      const clipboard = event.clipboardData || window.clipboardData;
+      const text = clipboard && clipboard.getData
+        ? clipboard.getData("text/plain")
+        : "";
+
+      document.execCommand("insertText", false, text);
     });
   });
 
@@ -547,14 +676,13 @@ function attachPartsEditorListeners() {
       const parts = criteriaCache[currentType];
 
       const partIndex = Number(btn.dataset.partIndex);
-      const partTitle = parts[partIndex].title;
+      const partTitle = stripAllTags(parts[partIndex].title || "")
+        .replace(/\s+/g, " ")
+        .trim() || "this part";
 
       showConfirmModal({
         title: "Delete Part?",
-        message: `This will permanently delete "${partTitle.replace(
-          /<br\s*\/?>/gi,
-          " ",
-        )}" and all ${parts[partIndex].questions.length} of its questions.`,
+        message: `This will permanently delete "${partTitle}" and all ${parts[partIndex].questions.length} of its questions.`,
         confirmLabel: "Delete",
         isDestructive: true,
 
