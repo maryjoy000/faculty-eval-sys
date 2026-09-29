@@ -62,9 +62,12 @@ function buildReviewSummaryHtml(options) {
   let ratingSum = 0;
 
   const partsHtml = parts
-    .map((part) => {
+    .map((part, partIndex) => {
       const questions = Array.isArray(part.questions) ? part.questions : [];
-      const partNumber = part.part_number ?? part.partNumber ?? "";
+      const partNumber = part.part_number ?? part.partNumber ?? partIndex + 1;
+
+      let partSum = 0;
+      let partAnswered = 0;
 
       const questionsHtml = questions
         .map((question) => {
@@ -78,15 +81,17 @@ function buildReviewSummaryHtml(options) {
 
           let badgeHtml;
           if (rating === null || isNaN(rating)) {
-            badgeHtml = `<span class="text-xs font-medium text-gray-400">Not answered</span>`;
+            badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Not answered</span>`;
           } else {
             answeredCount += 1;
             ratingSum += rating;
+            partSum += rating;
+            partAnswered += 1;
 
             const scaleLabel = getReviewScaleLabel(scaleLabels, rating);
             const ratingText = scaleLabel ? `${rating} — ${reviewEscapeHtml(scaleLabel)}` : `${rating}`;
 
-            badgeHtml = `<span class="text-sm font-semibold text-brand whitespace-nowrap">${ratingText}</span>`;
+            badgeHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand text-white whitespace-nowrap">${ratingText}</span>`;
           }
 
           return `
@@ -97,11 +102,17 @@ function buildReviewSummaryHtml(options) {
         })
         .join("");
 
+      // Titles already carry their own numbering ("Part 1: ...", "Domain 1: ..."),
+      // so render them as-is instead of prepending another "Part N:".
+      const partTitle = String(part.title || "").trim() || `Part ${partNumber}`;
+      const partAverage = partAnswered > 0 ? (partSum / partAnswered).toFixed(2) : "—";
+
       return `
         <div class="mb-4">
-          <h4 class="text-sm font-semibold text-gray-800 mb-1">
-            ${partNumber !== "" ? `Part ${partNumber}: ` : ""}${part.title || ""}
-          </h4>
+          <div class="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-1">
+            <h4 class="text-sm font-semibold text-gray-800">${partTitle}</h4>
+            <span class="text-xs font-bold text-brand whitespace-nowrap">${partAverage}</span>
+          </div>
           ${questionsHtml}
         </div>`;
     })
@@ -109,14 +120,15 @@ function buildReviewSummaryHtml(options) {
 
   const overallAverage = answeredCount > 0 ? ratingSum / answeredCount : 0;
   const equivalent = getReviewEquivalent(equivalents, overallAverage);
+  const overallDisplay = overallAverage.toFixed(2) + (equivalent ? ` — ${equivalent}` : "");
 
   let commentHtml = "";
   if (includeComment) {
     const commentText = String(opts.comment || "").trim();
 
     commentHtml = `
-      <div class="mt-4">
-        <h4 class="text-sm font-semibold text-gray-800 mb-1">Your Comment</h4>
+      <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
+        <h4 class="font-semibold text-gray-800 mb-1 text-sm">Your Comment</h4>
         ${
           commentText
             ? `<p class="text-sm text-gray-600 italic whitespace-pre-wrap">${reviewEscapeHtml(commentText)}</p>`
@@ -126,10 +138,16 @@ function buildReviewSummaryHtml(options) {
   }
 
   return `
-    <p class="text-sm text-gray-500 mb-4">
-      ${answeredCount} of ${totalQuestions} questions answered.
-      ${equivalent ? `Overall Average: <span class="font-semibold text-gray-800">${overallAverage.toFixed(2)} — ${reviewEscapeHtml(equivalent)}</span>` : `Overall Average: <span class="font-semibold text-gray-800">${overallAverage.toFixed(2)}</span>`}
-    </p>
+    <div class="bg-brand text-white rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3">
+      <div>
+        <p class="text-xs opacity-80">Questions answered</p>
+        <p class="font-bold">${answeredCount} of ${totalQuestions}</p>
+      </div>
+      <div class="text-right">
+        <p class="text-xs opacity-80">Overall Average</p>
+        <p class="font-bold">${reviewEscapeHtml(overallDisplay)}</p>
+      </div>
+    </div>
     ${partsHtml}
     ${commentHtml}
     <p class="text-xs text-gray-400 mt-4">
@@ -145,11 +163,13 @@ function ensureReviewModalExists() {
     `
     <div id="review-summary-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
       <div id="review-summary-backdrop" class="absolute inset-0 bg-black/40"></div>
-      <div class="relative bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 p-6 max-h-[85vh] overflow-y-auto">
-        <h2 id="review-summary-title" class="text-lg font-semibold text-gray-800 mb-1"></h2>
-        <p id="review-summary-subtitle" class="text-sm text-gray-500 mb-4"></p>
-        <div id="review-summary-body"></div>
-        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+      <div class="relative bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col overflow-hidden">
+        <div class="px-6 pt-6">
+          <h2 id="review-summary-title" class="text-lg font-semibold text-gray-800 mb-1"></h2>
+          <p id="review-summary-subtitle" class="text-sm text-gray-500 mb-4"></p>
+        </div>
+        <div id="review-summary-body" class="px-6 overflow-y-auto"></div>
+        <div class="flex justify-end gap-3 px-6 py-4 mt-4 border-t border-gray-200 bg-white">
           <button type="button" id="review-summary-back-btn" class="btn-secondary">Back to Edit</button>
           <button type="button" id="review-summary-confirm-btn" class="btn-primary"></button>
         </div>
