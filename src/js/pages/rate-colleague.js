@@ -7,6 +7,50 @@ let peerRatingParts = [];
 let currentPartIndex = 0;
 const answers = {};
 
+// --- Draft (save progress & continue later) ---
+let draftOwner = null;
+let draftColleagueId = null;
+
+function getEvaluatingColleagueId() {
+  try {
+    const stored = JSON.parse(
+      sessionStorage.getItem("evaluatingColleague") || "null"
+    );
+    return stored && stored.id !== undefined ? String(stored.id) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function initPeerDraftContext() {
+  draftColleagueId = getEvaluatingColleagueId();
+  draftOwner = await getDraftOwner();
+}
+
+function persistPeerDraft(answerSet) {
+  if (!draftColleagueId || !draftOwner) return;
+
+  let comment = "";
+
+  try {
+    const sessionComment = sessionStorage.getItem("peerDraftComment");
+
+    if (sessionComment !== null) {
+      comment = sessionComment;
+    } else {
+      const existing = loadEvalDraft("peer", draftColleagueId, draftOwner);
+      if (existing) comment = existing.comment;
+    }
+  } catch (error) {
+    comment = "";
+  }
+
+  saveEvalDraft("peer", draftColleagueId, draftOwner, {
+    answers: answerSet || answers,
+    comment,
+  });
+}
+
 // P2P uses the 1–4 scale from the actual peer evaluation form.
 const peerRatingScale = {
   scaleLabels: [
@@ -65,6 +109,25 @@ async function loadPeerCriteria() {
         delete answers[questionId];
       }
     });
+
+    // Merge the autosaved draft underneath: in-tab session answers win,
+    // otherwise continue where a previous tab/session left off.
+    await initPeerDraftContext();
+
+    if (draftColleagueId && draftOwner) {
+      const draft = loadEvalDraft("peer", draftColleagueId, draftOwner);
+
+      if (draft) {
+        const sessionKept = { ...answers };
+
+        Object.keys(answers).forEach((key) => delete answers[key]);
+        Object.assign(
+          answers,
+          pruneDraftAnswers(draft.answers, validQuestionIds),
+          sessionKept
+        );
+      }
+    }
 
     sessionStorage.setItem(
       "peerEvaluationAnswers",
@@ -288,6 +351,8 @@ function renderPart(partIndex) {
               JSON.stringify(answers)
             );
 
+            persistPeerDraft();
+
             const warning =
               document.getElementById(
                 "incomplete-warning"
@@ -420,6 +485,8 @@ function goNext() {
     "peerEvaluationAnswers",
     JSON.stringify(cleanAnswers)
   );
+
+  persistPeerDraft(cleanAnswers);
 
   window.location.href =
     "peer-comments.html";

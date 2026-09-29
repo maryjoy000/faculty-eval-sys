@@ -4,6 +4,45 @@
 let peerRatingParts = [];
 let peerScale = null;
 
+// --- Draft (save progress & continue later) ---
+let draftOwner = null;
+let draftColleagueId = null;
+
+function getEvaluatingColleagueId() {
+  try {
+    const stored = JSON.parse(
+      sessionStorage.getItem("evaluatingColleague") || "null"
+    );
+    return stored && stored.id !== undefined ? String(stored.id) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function initPeerDraftContext() {
+  draftColleagueId = getEvaluatingColleagueId();
+  draftOwner = await getDraftOwner();
+}
+
+function persistPeerDraft() {
+  if (!draftColleagueId || !draftOwner) return;
+
+  let answers = {};
+
+  try {
+    answers = JSON.parse(
+      sessionStorage.getItem("peerEvaluationAnswers") || "{}"
+    );
+  } catch (error) {
+    answers = {};
+  }
+
+  const textarea = document.getElementById("comments-textarea");
+  const comment = textarea ? textarea.value : "";
+
+  saveEvalDraft("peer", draftColleagueId, draftOwner, { answers, comment });
+}
+
 async function loadPeerCriteria() {
   try {
     peerScale =
@@ -39,8 +78,19 @@ function renderEvaluatingColleagueName() {
 
 function restoreDraftComment() {
   const textarea = document.getElementById("comments-textarea");
-  const draft = sessionStorage.getItem("peerDraftComment");
-  if (textarea && draft) textarea.value = draft;
+  if (!textarea || textarea.value) return;
+
+  const sessionDraft = sessionStorage.getItem("peerDraftComment");
+
+  if (sessionDraft !== null) {
+    textarea.value = sessionDraft;
+    return;
+  }
+
+  if (draftColleagueId && draftOwner) {
+    const draft = loadEvalDraft("peer", draftColleagueId, draftOwner);
+    if (draft && draft.comment) textarea.value = draft.comment;
+  }
 }
 
 function calculateCategoryScores(answers) {
@@ -135,6 +185,8 @@ async function handleSubmit() {
         sessionStorage.removeItem("peerEvaluationAnswers");
         sessionStorage.removeItem("peerDraftComment");
 
+        if (draftColleagueId) clearEvalDraft("peer", draftColleagueId);
+
         const submitArea = document.getElementById("submit-area");
 
         submitArea.innerHTML = `
@@ -208,6 +260,7 @@ document.getElementById("back-btn").addEventListener("click", goBack);
 document.getElementById("submit-btn").addEventListener("click", handleSubmit);
 document.getElementById("comments-textarea").addEventListener("input", (e) => {
   sessionStorage.setItem("peerDraftComment", e.target.value);
+  persistPeerDraft();
 });
 
 (async () => {
@@ -215,5 +268,9 @@ document.getElementById("comments-textarea").addEventListener("input", (e) => {
   document.getElementById("academic-year-display").textContent = getAcademicYearDisplay();
 })();
 renderEvaluatingColleagueName();
-restoreDraftComment();
-loadPeerCriteria();
+
+(async () => {
+  await initPeerDraftContext();
+  restoreDraftComment();
+  await loadPeerCriteria();
+})();

@@ -10,6 +10,49 @@ let currentPartIndex = 0;
 // { q1: "4", q2: "5", q3: "4", ... }
 const answers = {};
 
+// --- Draft (save progress & continue later) ---
+let draftOwner = null;
+let draftFacultyId = null;
+
+function getEvaluatingFacultyId() {
+  try {
+    const stored = JSON.parse(
+      sessionStorage.getItem("evaluatingFaculty") || "null"
+    );
+    return stored && stored.facultyId !== undefined
+      ? String(stored.facultyId)
+      : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function initStudentDraftContext() {
+  draftFacultyId = getEvaluatingFacultyId();
+  draftOwner = await getDraftOwner();
+}
+
+function persistStudentDraft() {
+  if (!draftFacultyId || !draftOwner) return;
+
+  let comment = "";
+
+  try {
+    const sessionComment = sessionStorage.getItem("draftComment");
+
+    if (sessionComment !== null) {
+      comment = sessionComment;
+    } else {
+      const existing = loadEvalDraft("student", draftFacultyId, draftOwner);
+      if (existing) comment = existing.comment;
+    }
+  } catch (error) {
+    comment = "";
+  }
+
+  saveEvalDraft("student", draftFacultyId, draftOwner, { answers, comment });
+}
+
 // --- Load actual criteria from the backend ---
 async function loadStudentCriteria() {
   try {
@@ -19,11 +62,32 @@ async function loadStudentCriteria() {
       throw new Error("No student evaluation criteria found.");
     }
 
-    // Restore previously saved answers
+    // Restore previously saved answers: in-tab session answers win,
+    // otherwise continue the autosaved draft (e.g. tab was closed).
+    await initStudentDraftContext();
+
     const storedAnswers = sessionStorage.getItem("evaluationAnswers");
 
+    if (draftFacultyId && draftOwner) {
+      const draft = loadEvalDraft("student", draftFacultyId, draftOwner);
+
+      if (draft) {
+        const validIds = new Set(
+          ratingParts.flatMap((part) =>
+            (part.questions || []).map((q) => q.id)
+          )
+        );
+
+        Object.assign(answers, pruneDraftAnswers(draft.answers, validIds));
+      }
+    }
+
     if (storedAnswers) {
-      Object.assign(answers, JSON.parse(storedAnswers));
+      try {
+        Object.assign(answers, JSON.parse(storedAnswers));
+      } catch (error) {
+        console.error("Invalid stored evaluation answers. Ignoring them.");
+      }
     }
 
     // Start at the first unanswered part.
@@ -177,6 +241,8 @@ function renderPart(partIndex) {
             JSON.stringify(answers)
           );
 
+          persistStudentDraft();
+
           const warning =
             document.getElementById(
               "incomplete-warning"
@@ -252,6 +318,8 @@ function goNext() {
       "evaluationAnswers",
       JSON.stringify(answers)
     );
+
+    persistStudentDraft();
 
     window.location.href = "comments.html";
   }

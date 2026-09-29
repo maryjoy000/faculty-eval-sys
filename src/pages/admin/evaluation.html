@@ -26,6 +26,7 @@
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div id="draft-resume-banner" class="hidden"></div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
           <thead>
@@ -65,6 +66,8 @@
 
       <div id="evaluation-domains-container"></div>
 
+      <p id="draft-saved-indicator" class="text-xs text-gray-400 mt-3 text-right"></p>
+
       <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
         <button type="button" id="evaluation-domain-back-btn" class="btn-secondary disabled:opacity-40 disabled:cursor-not-allowed">
           Back
@@ -94,6 +97,7 @@
   <script src="../../js/data/profile-data.js"></script>
   <script src="../../js/data/activity-log.js"></script>
   <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/draft.js"></script>
   <script src="../../js/utils/pagination.js"></script>
   <script src="../../js/components/sidebar.js"></script>
   <script src="../../js/components/confirm-modal.js"></script>

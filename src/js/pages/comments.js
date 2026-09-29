@@ -4,6 +4,45 @@
 
 let ratingParts = [];
 
+// --- Draft (save progress & continue later) ---
+let draftOwner = null;
+let draftFacultyId = null;
+
+function getEvaluatingFacultyId() {
+  try {
+    const stored = JSON.parse(
+      sessionStorage.getItem("evaluatingFaculty") || "null"
+    );
+    return stored && stored.facultyId !== undefined
+      ? String(stored.facultyId)
+      : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function initStudentDraftContext() {
+  draftFacultyId = getEvaluatingFacultyId();
+  draftOwner = await getDraftOwner();
+}
+
+function persistStudentDraft() {
+  if (!draftFacultyId || !draftOwner) return;
+
+  let answers = {};
+
+  try {
+    answers = JSON.parse(sessionStorage.getItem("evaluationAnswers") || "{}");
+  } catch (error) {
+    answers = {};
+  }
+
+  const textarea = document.getElementById("comments-textarea");
+  const comment = textarea ? textarea.value : "";
+
+  saveEvalDraft("student", draftFacultyId, draftOwner, { answers, comment });
+}
+
 // --- Load the same authoritative criteria used by the rating page ---
 async function loadStudentCriteria() {
   try {
@@ -101,6 +140,8 @@ async function handleSubmit() {
     sessionStorage.removeItem("evaluationAnswers");
     sessionStorage.removeItem("draftComment");
 
+    if (draftFacultyId) clearEvalDraft("student", draftFacultyId);
+
     const submitArea = document.getElementById("submit-area");
 
     submitArea.innerHTML = `
@@ -185,12 +226,21 @@ function calculateCategoryScores(answers) {
   return { categoryScores, overallAverage };
 }
 
-// --- Restore any in-progress comment text ---
+// --- Restore any in-progress comment text (tab draft first, saved draft after) ---
 function restoreDraftComment() {
   const textarea = document.getElementById("comments-textarea");
-  const draft = sessionStorage.getItem("draftComment");
-  if (textarea && draft) {
-    textarea.value = draft;
+  if (!textarea || textarea.value) return;
+
+  const sessionDraft = sessionStorage.getItem("draftComment");
+
+  if (sessionDraft !== null) {
+    textarea.value = sessionDraft;
+    return;
+  }
+
+  if (draftFacultyId && draftOwner) {
+    const draft = loadEvalDraft("student", draftFacultyId, draftOwner);
+    if (draft && draft.comment) textarea.value = draft.comment;
   }
 }
 
@@ -215,6 +265,7 @@ async function initializeCommentsPage() {
     await loadSystemSettings();
     await loadAnnouncement();
     await loadStudentCriteria();
+    await initStudentDraftContext();
 
     document.getElementById("academic-year-display").textContent =
       getAcademicYearDisplay();
@@ -269,6 +320,8 @@ async function initializeCommentsPage() {
           "draftComment",
           e.target.value
         );
+
+        persistStudentDraft();
       });
 
     restoreDraftComment();

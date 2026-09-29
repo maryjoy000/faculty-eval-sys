@@ -17,6 +17,24 @@ let currentFacultyBeingEvaluated = null;
 
 const hrAnswers = {};
 
+// --- Draft (save progress & continue later; HR evaluations
+// have no comment step, so only answers are stored) ---
+let draftOwner = null;
+
+async function initHrDraftContext() {
+  if (!draftOwner) draftOwner = await getDraftOwner();
+  return draftOwner;
+}
+
+function persistHrDraft() {
+  if (!draftOwner || !currentFacultyBeingEvaluated) return;
+
+  saveEvalDraft("hr", currentFacultyBeingEvaluated.id, draftOwner, {
+    answers: { ...hrAnswers },
+    comment: "",
+  });
+}
+
 var hrFacultyPager = null;
 function getHrFacultyPager() {
   if (!hrFacultyPager) {
@@ -132,7 +150,7 @@ async function renderHrFacultyTable() {
   }
 }
 
-function startHrEvaluation(facultyId) {
+async function startHrEvaluation(facultyId) {
   currentFacultyBeingEvaluated =
     facultyRosterCache.find(
       (faculty) => String(faculty.id) === String(facultyId)
@@ -143,6 +161,26 @@ function startHrEvaluation(facultyId) {
   Object.keys(hrAnswers).forEach((key) => {
     delete hrAnswers[key];
   });
+
+  await initHrDraftContext();
+
+  if (draftOwner && Array.isArray(hrCriteria) && hrCriteria.length) {
+    const draft = loadEvalDraft(
+      "hr",
+      currentFacultyBeingEvaluated.id,
+      draftOwner
+    );
+
+    if (draft) {
+      const validIds = new Set(
+        hrCriteria.flatMap((part) =>
+          (part.questions || []).map((q) => q.id)
+        )
+      );
+
+      Object.assign(hrAnswers, pruneDraftAnswers(draft.answers, validIds));
+    }
+  }
 
   document.getElementById("hr-faculty-name").textContent =
     currentFacultyBeingEvaluated.name;
@@ -238,6 +276,7 @@ function renderHrCriteria() {
         .forEach((radio) => {
           radio.addEventListener("change", (event) => {
             hrAnswers[question.id] = event.target.value;
+            persistHrDraft();
           });
         });
     });
@@ -303,7 +342,12 @@ async function finalizeHrEvaluation() {
       .getElementById("hr-select-view")
       .classList.remove("hidden");
 
+    if (currentFacultyBeingEvaluated) {
+      clearEvalDraft("hr", currentFacultyBeingEvaluated.id);
+    }
+
     await renderHrFacultyTable();
+    await renderHrDraftResumeBanner();
 
   } catch (error) {
     console.error("Failed to submit HR evaluation:", error);
@@ -340,10 +384,93 @@ document.addEventListener("click", (event) => {
   }
 });
 
+// --- Draft resume banner (save progress & continue later) ---
+async function renderHrDraftResumeBanner() {
+  const banner = document.getElementById("draft-resume-banner");
+  if (!banner) return;
+
+  banner.classList.add("hidden");
+  banner.innerHTML = "";
+
+  await initHrDraftContext();
+  if (!draftOwner) return;
+
+  let statusMap = new Map();
+  try {
+    statusMap = await getHrEvaluationStatus();
+  } catch (error) {
+    console.error("Failed to load HR evaluation status for drafts:", error);
+  }
+
+  const entries = listEvalDrafts("hr", draftOwner)
+    .map((draft) => {
+      const faculty = facultyRosterCache.find(
+        (entry) => String(entry.id) === String(draft.subjectId)
+      );
+      if (!faculty) return null;
+
+      const status = statusMap.get(String(draft.subjectId));
+      if (status && status.completed) {
+        clearEvalDraft("hr", draft.subjectId);
+        return null;
+      }
+
+      return { draft, faculty };
+    })
+    .filter(Boolean);
+
+  if (!entries.length) return;
+
+  const escapeName = (value) =>
+    String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  banner.innerHTML = `
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+      <p class="text-sm font-semibold text-blue-800 mb-1">Unfinished evaluation${entries.length === 1 ? "" : "s"}</p>
+      <p class="text-xs text-blue-700 mb-3">Your progress was auto-saved. Continue where you left off, or discard it.</p>
+      <div class="space-y-2">
+        ${entries
+          .map(
+            ({ draft, faculty }) => `
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between bg-white border border-blue-100 rounded-lg px-3 py-2">
+            <span class="text-sm text-gray-700">
+              <span class="font-medium">${escapeName(faculty.name)}</span>
+              <span class="text-gray-400">· ${draft.answeredCount} answer${draft.answeredCount === 1 ? "" : "s"} saved</span>
+            </span>
+            <span class="flex gap-2">
+              <button type="button" class="resume-draft-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Continue</button>
+              <button type="button" class="discard-draft-btn btn-secondary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Discard</button>
+            </span>
+          </div>`
+          )
+          .join("")}
+      </div>
+    </div>`;
+
+  banner.classList.remove("hidden");
+
+  banner.querySelectorAll(".resume-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      startHrEvaluation(btn.dataset.facultyId);
+    });
+  });
+
+  banner.querySelectorAll(".discard-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      clearEvalDraft("hr", btn.dataset.facultyId);
+      await renderHrDraftResumeBanner();
+    });
+  });
+}
+
 async function initializeHrEvaluationPage() {
   try {
     await loadHrEvaluationData();
     await renderHrFacultyTable();
+    await renderHrDraftResumeBanner();
     await checkUrlForDirectEvaluation();
   } catch (error) {
     console.error(

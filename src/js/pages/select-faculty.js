@@ -416,7 +416,98 @@ async function initializeSelectFacultyPage() {
 
   await renderFacultyTable();
 
+  await renderDraftResumeBanner();
+
   attachResultsModalListeners();
+}
+
+// ============================================
+// DRAFT RESUME BANNER (save progress & continue later)
+// ============================================
+
+async function renderDraftResumeBanner() {
+  const banner = document.getElementById("draft-resume-banner");
+  if (!banner) return;
+
+  banner.classList.add("hidden");
+  banner.innerHTML = "";
+
+  // Drafts can't be continued while the period is closed.
+  if (!checkEvaluationPeriodStatus().isOpen) return;
+
+  const owner = await getDraftOwner();
+  if (!owner) return;
+
+  const entries = listEvalDrafts("student", owner)
+    .map((draft) => {
+      const index = studentFacultyListCache.findIndex(
+        (item) => String(item.facultyId) === String(draft.subjectId)
+      );
+      if (index === -1) return null;
+
+      const status = (studentEvalStatusCache[index] || {}).status;
+      if (status === "evaluated") {
+        clearEvalDraft("student", draft.subjectId);
+        return null;
+      }
+
+      return { draft, item: studentFacultyListCache[index] };
+    })
+    .filter(Boolean);
+
+  if (!entries.length) return;
+
+  banner.innerHTML = `
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <p class="text-sm font-semibold text-blue-800 mb-1">Unfinished evaluation${entries.length === 1 ? "" : "s"}</p>
+      <p class="text-xs text-blue-700 mb-3">Your progress was auto-saved. Continue where you left off, or discard it.</p>
+      <div class="space-y-2">
+        ${entries
+          .map(({ draft, item }) => {
+            const safeName = String(item.faculty || "")
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+
+            return `
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between bg-white border border-blue-100 rounded-lg px-3 py-2">
+            <span class="text-sm text-gray-700">
+              <span class="font-medium">${safeName}</span>
+              <span class="text-gray-400">· ${draft.answeredCount} answer${draft.answeredCount === 1 ? "" : "s"} saved</span>
+            </span>
+            <span class="flex gap-2">
+              <button type="button" class="resume-draft-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${item.facultyId}">Continue</button>
+              <button type="button" class="discard-draft-btn btn-secondary text-sm px-4 py-1.5" data-faculty-id="${item.facultyId}">Discard</button>
+            </span>
+          </div>`;
+          })
+          .join("")}
+      </div>
+    </div>`;
+
+  banner.classList.remove("hidden");
+
+  banner.querySelectorAll(".resume-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const selected = studentFacultyListCache.find(
+        (entry) => String(entry.facultyId) === String(btn.dataset.facultyId)
+      );
+      if (!selected) return;
+
+      sessionStorage.removeItem("evaluationAnswers");
+      sessionStorage.removeItem("draftComment");
+      sessionStorage.setItem("evaluatingFaculty", JSON.stringify(selected));
+
+      window.location.href = "rate-faculty.html";
+    });
+  });
+
+  banner.querySelectorAll(".discard-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      clearEvalDraft("student", btn.dataset.facultyId);
+      await renderDraftResumeBanner();
+    });
+  });
 }
 
 initializeSelectFacultyPage();

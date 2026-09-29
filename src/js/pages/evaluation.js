@@ -23,6 +23,24 @@ let currentFacultyBeingObserved = null;
 let currentDomainIndex = 0;
 const observationAnswers = {};
 
+// --- Draft (save progress & continue later; classroom observations
+// have no comment step, so only answers are stored) ---
+let draftOwner = null;
+
+async function initObservationDraftContext() {
+  if (!draftOwner) draftOwner = await getDraftOwner();
+  return draftOwner;
+}
+
+function persistObservationDraft() {
+  if (!draftOwner || !currentFacultyBeingObserved) return;
+
+  saveEvalDraft("observation", currentFacultyBeingObserved.id, draftOwner, {
+    answers: { ...observationAnswers },
+    comment: "",
+  });
+}
+
 var evaluationFacultyPager = null;
 function getEvaluationFacultyPager() {
   if (!evaluationFacultyPager) {
@@ -130,17 +148,136 @@ async function renderEvaluationFacultyTable() {
   });
 }
 
+// --- Draft resume banner (save progress & continue later) ---
+async function renderObservationDraftBanner() {
+  const banner = document.getElementById("draft-resume-banner");
+  if (!banner) return;
+
+  banner.classList.add("hidden");
+  banner.innerHTML = "";
+
+  await initObservationDraftContext();
+  if (!draftOwner) return;
+
+  let observations = [];
+  try {
+    observations = await apiGet("/evaluations/dashboard-classroom-observations");
+  } catch (error) {
+    console.error("Failed to load classroom observations for drafts:", error);
+  }
+
+  const roster = getFacultyRoster();
+
+  const entries = listEvalDrafts("observation", draftOwner)
+    .map((draft) => {
+      const faculty = (roster || []).find(
+        (f) => String(f.id) === String(draft.subjectId)
+      );
+      if (!faculty) return null;
+
+      const observed = (observations || []).some(
+        (item) => String(item.faculty_id) === String(draft.subjectId)
+      );
+      if (observed) {
+        clearEvalDraft("observation", draft.subjectId);
+        return null;
+      }
+
+      return { draft, faculty };
+    })
+    .filter(Boolean);
+
+  if (!entries.length) return;
+
+  const escapeName = (value) =>
+    String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  banner.innerHTML = `
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+      <p class="text-sm font-semibold text-blue-800 mb-1">Unfinished observation${entries.length === 1 ? "" : "s"}</p>
+      <p class="text-xs text-blue-700 mb-3">Your progress was auto-saved. Continue where you left off, or discard it.</p>
+      <div class="space-y-2">
+        ${entries
+          .map(
+            ({ draft, faculty }) => `
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between bg-white border border-blue-100 rounded-lg px-3 py-2">
+            <span class="text-sm text-gray-700">
+              <span class="font-medium">${escapeName(faculty.name)}</span>
+              <span class="text-gray-400">· ${draft.answeredCount} answer${draft.answeredCount === 1 ? "" : "s"} saved</span>
+            </span>
+            <span class="flex gap-2">
+              <button type="button" class="resume-draft-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Continue</button>
+              <button type="button" class="discard-draft-btn btn-secondary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Discard</button>
+            </span>
+          </div>`
+          )
+          .join("")}
+      </div>
+    </div>`;
+
+  banner.classList.remove("hidden");
+
+  banner.querySelectorAll(".resume-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      startObservation(btn.dataset.facultyId);
+    });
+  });
+
+  banner.querySelectorAll(".discard-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      clearEvalDraft("observation", btn.dataset.facultyId);
+      await renderObservationDraftBanner();
+    });
+  });
+}
+
 // --- Start observing a specific faculty member ---
-function startObservation(facultyId) {
+async function startObservation(facultyId) {
   currentFacultyBeingObserved = getFacultyRoster().find(
     (f) => String(f.id) === String(facultyId),
   );
   currentDomainIndex = 0;
 
-  // Clear previous in-progress answers when starting fresh
+  // Clear previous in-progress answers when starting fresh,
+  // then restore this faculty's autosaved draft (if any).
   Object.keys(observationAnswers).forEach(
     (key) => delete observationAnswers[key],
   );
+
+  if (currentFacultyBeingObserved) {
+    await initObservationDraftContext();
+
+    if (draftOwner && Array.isArray(observationCriteria) && observationCriteria.length) {
+      const draft = loadEvalDraft(
+        "observation",
+        currentFacultyBeingObserved.id,
+        draftOwner
+      );
+
+      if (draft) {
+        const validIds = new Set(
+          observationCriteria.flatMap((part) =>
+            (part.questions || []).map((q) => q.id)
+          )
+        );
+
+        Object.assign(
+          observationAnswers,
+          pruneDraftAnswers(draft.answers, validIds)
+        );
+      }
+    }
+
+    // Jump to the first incomplete domain so resuming continues
+    // where the previous session left off.
+    for (let i = 0; i < observationCriteria.length; i++) {
+      currentDomainIndex = i;
+      if (!isObservationDomainComplete(i)) break;
+    }
+  }
 
   document.getElementById("evaluation-faculty-name").textContent =
     `${currentFacultyBeingObserved.name} (${currentFacultyBeingObserved.subjects.join(", ")})`;
@@ -204,6 +341,7 @@ function renderDomain(domainIndex) {
     document.querySelectorAll(`input[name="${q.id}"]`).forEach((radio) => {
       radio.addEventListener("change", (e) => {
         observationAnswers[q.id] = e.target.value;
+        persistObservationDraft();
         const warning = document.getElementById("observation-incomplete-warning");
         if (warning) {
           warning.remove();
@@ -318,7 +456,12 @@ async function finalizeClassroomObservation() {
       (key) => delete observationAnswers[key],
     );
 
+    if (currentFacultyBeingObserved) {
+      clearEvalDraft("observation", currentFacultyBeingObserved.id);
+    }
+
     await renderEvaluationFacultyTable();
+    await renderObservationDraftBanner();
   } catch (error) {
     console.error("Failed to submit classroom observation:", error);
     alert(error.message || "Failed to submit classroom observation.");
@@ -441,6 +584,7 @@ async function initializeEvaluationPage() {
     }
 
     await renderEvaluationFacultyTable();
+    await renderObservationDraftBanner();
   } catch (error) {
     console.error("Failed to initialize classroom observation:", error);
 

@@ -266,5 +266,92 @@ function renderAnnouncementBanner() {
   document.getElementById("academic-year-display").textContent = getAcademicYearDisplay();
   renderAnnouncementBanner();
 })();
-renderColleagueTable();
+renderColleagueTable().then(() => renderPeerDraftResumeBanner());
 attachResultsModalListeners();
+
+async function renderPeerDraftResumeBanner() {
+  const banner = document.getElementById("draft-resume-banner");
+  if (!banner) return;
+
+  banner.classList.add("hidden");
+  banner.innerHTML = "";
+
+  const owner = await getDraftOwner();
+  if (!owner) return;
+
+  const statuses = Array.isArray(colleagueStatusCache) ? colleagueStatusCache : [];
+
+  const entries = listEvalDrafts("peer", owner)
+    .map((draft) => {
+      const colleague = colleagueListCache.find(
+        (entry) => String(entry.id) === String(draft.subjectId)
+      );
+      if (!colleague) return null;
+
+      const status = statuses.find(
+        (item) => String(item.faculty_id) === String(draft.subjectId)
+      );
+      if (status && status.status === "evaluated") {
+        clearEvalDraft("peer", draft.subjectId);
+        return null;
+      }
+
+      return { draft, colleague };
+    })
+    .filter(Boolean);
+
+  if (!entries.length) return;
+
+  const escapeName = (value) =>
+    String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  banner.innerHTML = `
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <p class="text-sm font-semibold text-blue-800 mb-1">Unfinished evaluation${entries.length === 1 ? "" : "s"}</p>
+      <p class="text-xs text-blue-700 mb-3">Your progress was auto-saved. Continue where you left off, or discard it.</p>
+      <div class="space-y-2">
+        ${entries
+          .map(
+            ({ draft, colleague }) => `
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between bg-white border border-blue-100 rounded-lg px-3 py-2">
+            <span class="text-sm text-gray-700">
+              <span class="font-medium">${escapeName(colleague.name)}</span>
+              <span class="text-gray-400">· ${draft.answeredCount} answer${draft.answeredCount === 1 ? "" : "s"} saved</span>
+            </span>
+            <span class="flex gap-2">
+              <button type="button" class="resume-draft-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${colleague.id}">Continue</button>
+              <button type="button" class="discard-draft-btn btn-secondary text-sm px-4 py-1.5" data-faculty-id="${colleague.id}">Discard</button>
+            </span>
+          </div>`
+          )
+          .join("")}
+      </div>
+    </div>`;
+
+  banner.classList.remove("hidden");
+
+  banner.querySelectorAll(".resume-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const selected = colleagueListCache.find(
+        (entry) => String(entry.id) === String(btn.dataset.facultyId)
+      );
+      if (!selected) return;
+
+      sessionStorage.removeItem("peerEvaluationAnswers");
+      sessionStorage.removeItem("peerDraftComment");
+      sessionStorage.setItem("evaluatingColleague", JSON.stringify(selected));
+
+      window.location.href = "rate-colleague.html";
+    });
+  });
+
+  banner.querySelectorAll(".discard-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      clearEvalDraft("peer", btn.dataset.facultyId);
+      await renderPeerDraftResumeBanner();
+    });
+  });
+}
