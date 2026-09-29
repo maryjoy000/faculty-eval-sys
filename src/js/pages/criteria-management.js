@@ -36,6 +36,46 @@ let scaleCache = {
   hrEvaluation: null,
 };
 
+// --- Line-break helpers for the editor ---
+// criteria-data.js defines brToNl/nlToBr on some pages (HR) but not all
+// (Admin). Reuse them when present so behavior is identical everywhere;
+// otherwise fall back to the same conversion locally.
+const brToLines = (typeof brToNl === "function")
+  ? brToNl
+  : function (text) {
+      return (text || "").replace(/<br\s*\/?>/gi, "\n");
+    };
+
+const linesToBr = (typeof nlToBr === "function")
+  ? nlToBr
+  : function (text) {
+      return (text || "").replace(/<br\s*\/?>/gi, "\n").replace(/\n/g, "<br>");
+    };
+
+// --- Split a stored "Title<br>Subtitle" into two user-friendly fields ---
+function splitTitleSubtitle(title) {
+  const segments = String(title || "").split(/<br\s*\/?>/i);
+  const main = (segments.shift() || "").trim();
+  const sub = segments.join("\n").replace(/<br\s*\/?>/gi, "\n").trim();
+  return { main, sub };
+}
+
+// --- Join the two fields back into the single stored title format ---
+function joinTitleSubtitle(main, sub) {
+  // Title stays single-line: any pasted <br> or newline becomes a space.
+  const title = String(main || "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const subtitle = brToLines(sub || "").trim();
+
+  if (title && subtitle) {
+    return `${title} <br> ${linesToBr(subtitle)}`;
+  }
+
+  return title || linesToBr(subtitle);
+}
+
 // ============================================
 // Load / save criteria (parts & questions)
 // ============================================
@@ -275,17 +315,30 @@ function renderPartsEditor() {
   }
 
   container.innerHTML = parts
-    .map(
-      (part, partIndex) => `
+    .map((part, partIndex) => {
+      const titleParts = splitTitleSubtitle(part.title || "");
+
+      return `
         <div class="border border-gray-200 rounded-lg p-4">
 
-          <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-start justify-between gap-2 mb-3">
 
-            <textarea
-              rows="2"
-              class="part-title-input flex-1 font-medium text-gray-800 border border-gray-300 rounded-lg px-2 py-1 resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-              data-part-index="${partIndex}"
-            >${escapeHtml(part.title || "")}</textarea>
+            <div class="flex-1 space-y-2">
+              <input
+                type="text"
+                class="part-title-input w-full font-medium text-gray-800 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                data-part-index="${partIndex}"
+                placeholder="Title (e.g. Part 1: Punctuality and Timeliness)"
+                value="${escapeAttribute(titleParts.main)}"
+              >
+
+              <textarea
+                rows="2"
+                class="part-subtitle-input w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-2 py-1 resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                data-part-index="${partIndex}"
+                placeholder="Subtitle (e.g. The Teacher...) — press Enter for a new line"
+              >${escapeHtml(titleParts.sub)}</textarea>
+            </div>
 
             <div class="flex flex-col gap-0.5">
 
@@ -335,7 +388,8 @@ function renderPartsEditor() {
                       class="question-text-input flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                       data-part-index="${partIndex}"
                       data-question-index="${questionIndex}"
-                    >${escapeHtml(question.text || "")}</textarea>
+                      placeholder="Question text — press Enter for a new line"
+                    >${escapeHtml(brToLines(question.text || ""))}</textarea>
 
                     <div class="flex flex-col gap-0.5 pt-1">
 
@@ -394,21 +448,42 @@ function renderPartsEditor() {
           </button>
 
         </div>
-      `,
-    )
+      `;
+    })
     .join("");
 
   attachPartsEditorListeners();
 }
 
 function attachPartsEditorListeners() {
+  function savePartTitle(partIndex) {
+    const parts = criteriaCache[currentType];
+
+    if (!parts || !parts[partIndex]) return;
+
+    const mainInput = document.querySelector(
+      `.part-title-input[data-part-index="${partIndex}"]`
+    );
+    const subInput = document.querySelector(
+      `.part-subtitle-input[data-part-index="${partIndex}"]`
+    );
+
+    parts[partIndex].title = joinTitleSubtitle(
+      mainInput ? mainInput.value : "",
+      subInput ? subInput.value : ""
+    );
+    criteriaCache[currentType] = parts;
+  }
+
   document.querySelectorAll(".part-title-input").forEach((input) => {
     input.addEventListener("blur", () => {
-      const parts = criteriaCache[currentType];
-      const partIndex = Number(input.dataset.partIndex);
+      savePartTitle(Number(input.dataset.partIndex));
+    });
+  });
 
-      parts[partIndex].title = input.value.trim();
-      criteriaCache[currentType] = parts;
+  document.querySelectorAll(".part-subtitle-input").forEach((input) => {
+    input.addEventListener("blur", () => {
+      savePartTitle(Number(input.dataset.partIndex));
     });
   });
 
@@ -418,8 +493,9 @@ function attachPartsEditorListeners() {
       const partIndex = Number(textarea.dataset.partIndex);
       const questionIndex = Number(textarea.dataset.questionIndex);
 
-      parts[partIndex].questions[questionIndex].text =
-        textarea.value.trim();
+      parts[partIndex].questions[questionIndex].text = linesToBr(
+        textarea.value.trim()
+      );
 
       criteriaCache[currentType] = parts;
     });
