@@ -259,14 +259,19 @@ function handleHrSubmit() {
     return;
   }
 
-  showConfirmModal({
-    title: "Submit HR Evaluation?",
-    message:
-      `You're about to finalize the HR evaluation for ` +
-      `${currentFacultyBeingEvaluated.name}. ` +
-      `This cannot be edited afterward.`,
+  showReviewModal({
+    title: "Review HR Evaluation",
+    subtitle: currentFacultyBeingEvaluated
+      ? currentFacultyBeingEvaluated.name
+      : "",
+    summaryHtml: buildReviewSummaryHtml({
+      parts: hrCriteria,
+      answers: hrAnswers,
+      scaleLabels: hrScale ? hrScale.scaleLabels : [],
+      equivalents: hrScale ? hrScale.equivalents : [],
+      includeComment: false
+    }),
     confirmLabel: "Submit Evaluation",
-    isDestructive: false,
     onConfirm: finalizeHrEvaluation
   });
 }

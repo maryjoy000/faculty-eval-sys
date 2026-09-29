@@ -254,12 +254,20 @@ function goToNextDomain() {
     currentDomainIndex++;
     renderDomain(currentDomainIndex);
   } else {
-    // Last domain reached — confirm before finalizing
-    showConfirmModal({
-      title: "Submit Classroom Observation?",
-      message: `You're about to finalize the classroom observation for ${currentFacultyBeingObserved.name}. This cannot be edited afterward.`,
+    // Last domain reached — review every answer before finalizing
+    showReviewModal({
+      title: "Review Classroom Observation",
+      subtitle: currentFacultyBeingObserved
+        ? currentFacultyBeingObserved.name
+        : "",
+      summaryHtml: buildReviewSummaryHtml({
+        parts: observationCriteria,
+        answers: observationAnswers,
+        scaleLabels: observationScale ? observationScale.scaleLabels : [],
+        equivalents: observationScale ? observationScale.equivalents : [],
+        includeComment: false
+      }),
       confirmLabel: "Submit Observation",
-      isDestructive: false,
       onConfirm: finalizeClassroomObservation,
     });
   }

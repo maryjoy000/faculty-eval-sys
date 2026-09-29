@@ -99,11 +99,18 @@ async function handleSubmit() {
       ? matchingBand.label
       : "N/A";
 
-  showConfirmModal({
-    title: "Submit Peer Evaluation?",
-    message: `Once submitted, you won't be able to change your ratings or comments for ${colleague.name}.`,
+  showReviewModal({
+    title: "Review Peer Evaluation",
+    subtitle: colleague.name || "",
+    summaryHtml: buildReviewSummaryHtml({
+      parts: peerRatingParts,
+      answers,
+      scaleLabels: peerScale ? peerScale.scaleLabels : [],
+      equivalents: peerScale ? peerScale.equivalents : [],
+      comment: commentText,
+      includeComment: true
+    }),
     confirmLabel: "Submit Evaluation",
-    isDestructive: false,
     onConfirm: async () => {
       try {
         const responses = Object.entries(answers).map(

@@ -221,13 +221,43 @@ async function initializeCommentsPage() {
 
     document.getElementById("back-btn").addEventListener("click", goBack);
 
-    document.getElementById("submit-btn").addEventListener("click", () => {
-      showConfirmModal({
-        title: "Submit Evaluation?",
-        message:
-          "Once submitted, you won't be able to change your ratings or comments for this faculty member.",
+    document.getElementById("submit-btn").addEventListener("click", async () => {
+      if (!ratingParts.length) {
+        try {
+          await loadStudentCriteria();
+        } catch (error) {
+          alert("Unable to load the evaluation criteria. Please refresh the page and try again.");
+          return;
+        }
+      }
+
+      let scale = null;
+      try {
+        scale = await loadEvaluationScale("student");
+      } catch (error) {
+        console.error("Failed to load student scale for review:", error);
+        scale = getScale("student");
+      }
+
+      const answers = JSON.parse(sessionStorage.getItem("evaluationAnswers") || "{}");
+      const commentText = document.getElementById("comments-textarea").value;
+      const faculty = JSON.parse(sessionStorage.getItem("evaluatingFaculty") || "{}");
+      const facultyLabel = faculty.faculty
+        ? `${faculty.faculty}${faculty.subjectNames ? ` (${faculty.subjectNames})` : ""}`
+        : "";
+
+      showReviewModal({
+        title: "Review Your Evaluation",
+        subtitle: facultyLabel,
+        summaryHtml: buildReviewSummaryHtml({
+          parts: ratingParts,
+          answers,
+          scaleLabels: scale ? scale.scaleLabels : [],
+          equivalents: scale ? scale.equivalents : [],
+          comment: commentText,
+          includeComment: true
+        }),
         confirmLabel: "Submit Evaluation",
-        isDestructive: false,
         onConfirm: handleSubmit
       });
     });
