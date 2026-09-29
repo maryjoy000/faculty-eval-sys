@@ -814,6 +814,25 @@ function exportFaculty() {
     return;
   }
 
+  if (typeof XLSX !== "undefined" && XLSX.utils) {
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    worksheet["!cols"] = [
+      { wch: 28 },
+      { wch: 32 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 12 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Faculty");
+
+    XLSX.writeFile(workbook, "faculty-management.xlsx");
+    return;
+  }
+
   const headers = Object.keys(rows[0]);
 
   const csv = [

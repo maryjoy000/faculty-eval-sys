@@ -115,6 +115,28 @@ function exportFacultyList() {
     ];
   });
 
+  const fileBase = `faculty-list-${new Date().toISOString().slice(0, 10)}`;
+
+  if (typeof XLSX !== "undefined" && XLSX.utils) {
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      headers,
+      ...rows
+    ]);
+
+    worksheet["!cols"] = [
+      { wch: 28 },
+      { wch: 40 },
+      { wch: 12 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Faculty");
+
+    XLSX.writeFile(workbook, `${fileBase}.xlsx`);
+    return;
+  }
+
   const csvContent = [
     headers,
     ...rows
@@ -134,7 +156,7 @@ function exportFacultyList() {
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = `faculty-list-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `${fileBase}.csv`;
 
   document.body.appendChild(link);
   link.click();
