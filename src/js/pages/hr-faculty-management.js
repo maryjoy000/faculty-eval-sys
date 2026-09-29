@@ -15,6 +15,18 @@ let advisoryAssignmentsCache = [];
 let currentlyEditingFacultyId = null;
 let currentActionFacultyId = null;
 
+var hrFacultyTablePager = null;
+function getHrFacultyTablePager() {
+  if (!hrFacultyTablePager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      hrFacultyTablePager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      hrFacultyTablePager = null;
+    }
+  }
+  return hrFacultyTablePager;
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -154,10 +166,20 @@ function renderHrFacultyTable() {
         </td>
       </tr>
     `;
+    const emptyPager = getHrFacultyTablePager();
+    if (emptyPager) {
+      emptyPager.render("faculty-management-pagination", 0, renderHrFacultyTable);
+    } else {
+      const fallbackContainer = document.getElementById("faculty-management-pagination");
+      if (fallbackContainer) fallbackContainer.innerHTML = "";
+    }
     return;
   }
 
-  tbody.innerHTML = filtered
+  const pager = getHrFacultyTablePager();
+  const pageItems = pager ? pager.paginate(filtered) : filtered;
+
+  tbody.innerHTML = pageItems
     .map((faculty) => {
       const subjects = getFacultySubjects(faculty)
         .map(subjectDisplay)
@@ -225,6 +247,10 @@ function renderHrFacultyTable() {
     .join("");
 
   bindFacultyActionButtons();
+
+  if (pager) {
+    pager.render("faculty-management-pagination", filtered.length, renderHrFacultyTable);
+  }
 }
 
 // ============================================
@@ -749,11 +775,19 @@ function bindPageEvents() {
 function attachFilterListeners() {
   document
     .getElementById("search-input")
-    ?.addEventListener("input", renderHrFacultyTable);
+    ?.addEventListener("input", () => {
+      const pager = getHrFacultyTablePager();
+      if (pager) pager.reset();
+      renderHrFacultyTable();
+    });
 
   document
     .getElementById("status-filter")
-    ?.addEventListener("change", renderHrFacultyTable);
+    ?.addEventListener("change", () => {
+      const pager = getHrFacultyTablePager();
+      if (pager) pager.reset();
+      renderHrFacultyTable();
+    });
 }
 
 // ============================================

@@ -26,6 +26,21 @@ async function getColleagueEvaluationStatus(facultyId) {
   }
 }
 
+var colleagueTablePager = null;
+function getColleagueTablePager() {
+  if (!colleagueTablePager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      colleagueTablePager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      colleagueTablePager = null;
+    }
+  }
+  return colleagueTablePager;
+}
+
+let colleagueListCache = [];
+let colleagueStatusCache = [];
+
 async function renderColleagueTable() {
   const tableBody = document.getElementById("colleague-table-body");
   if (!tableBody) return;
@@ -44,7 +59,44 @@ async function renderColleagueTable() {
         Number(faculty.id) !== Number(currentFacultyId)
     );
 
-    tableBody.innerHTML = colleagues.map((faculty) => {
+    colleagueListCache = colleagues;
+    colleagueStatusCache = peerStatuses;
+    const pager = getColleagueTablePager();
+    if (pager) pager.reset();
+    renderColleagueTablePage();
+  } catch (error) {
+    console.error("Failed to load colleague list:", error);
+
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="3" class="py-4 text-center text-red-600">
+          Unable to load faculty members.
+        </td>
+      </tr>
+    `;
+    const fallbackContainer = document.getElementById("colleague-table-pagination");
+    if (fallbackContainer) fallbackContainer.innerHTML = "";
+  }
+}
+
+function renderColleagueTablePage() {
+  const tableBody = document.getElementById("colleague-table-body");
+  if (!tableBody) return;
+
+  const pager = getColleagueTablePager();
+  const pageItems = pager ? pager.paginate(colleagueListCache) : colleagueListCache;
+  const peerStatuses = colleagueStatusCache;
+
+  if (pageItems.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="3" class="py-4 text-center text-gray-400">
+          No colleagues found.
+        </td>
+      </tr>
+    `;
+  } else {
+    tableBody.innerHTML = pageItems.map((faculty) => {
     const evalData =
       peerStatuses.find(
         (item) => Number(item.faculty_id) === Number(faculty.id)
@@ -77,9 +129,10 @@ async function renderColleagueTable() {
 
     document.querySelectorAll(".evaluate-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const faculty = colleagues.find(
+        const faculty = colleagueListCache.find(
           (f) => String(f.id) === btn.dataset.facultyId
         );
+        if (!faculty) return;
 
         sessionStorage.removeItem("peerEvaluationAnswers");
         sessionStorage.removeItem("peerDraftComment");
@@ -94,24 +147,21 @@ async function renderColleagueTable() {
 
     document.querySelectorAll(".view-results-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const faculty = colleagues.find(
+        const faculty = colleagueListCache.find(
           (f) => String(f.id) === btn.dataset.facultyId
         );
+        if (!faculty) return;
 
         showResultsModal(faculty);
       });
     });
+  }
 
-  } catch (error) {
-    console.error("Failed to load colleague list:", error);
-
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="3" class="py-4 text-center text-red-600">
-          Unable to load faculty members.
-        </td>
-      </tr>
-    `;
+  if (pager) {
+    pager.render("colleague-table-pagination", colleagueListCache.length, renderColleagueTablePage);
+  } else {
+    const fallbackContainer = document.getElementById("colleague-table-pagination");
+    if (fallbackContainer) fallbackContainer.innerHTML = "";
   }
 }
 

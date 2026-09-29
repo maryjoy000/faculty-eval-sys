@@ -5,6 +5,36 @@
 // --- Cache, fetched once at load and refreshed after every mutation ---
 let advisoryAssignmentsCache = [];
 
+// Per-section pagination state: { [assignmentId]: { page, perPage } }
+// Survives re-renders so paging one section does not reset the others.
+var advisoryPaginationStates = {};
+
+function getAdvisoryPageState(assignmentId) {
+  const key = String(assignmentId);
+  if (!advisoryPaginationStates[key]) {
+    advisoryPaginationStates[key] = { page: 1, perPage: 10 };
+  }
+  return advisoryPaginationStates[key];
+}
+
+function sortAdvisoryStudents(students) {
+  return [...(students || [])].sort((a, b) => {
+    const lastNameCompare = (a.last_name || "").localeCompare(b.last_name || "", undefined, {
+      sensitivity: "base",
+    });
+    if (lastNameCompare !== 0) return lastNameCompare;
+
+    const firstNameCompare = (a.first_name || "").localeCompare(b.first_name || "", undefined, {
+      sensitivity: "base",
+    });
+    if (firstNameCompare !== 0) return firstNameCompare;
+
+    return (a.middle_name || "").localeCompare(b.middle_name || "", undefined, {
+      sensitivity: "base",
+    });
+  });
+}
+
 async function loadAdvisoryAssignments() {
   advisoryAssignmentsCache = await apiGet("/advisory");
   renderAdvisoryClasses();
@@ -22,7 +52,41 @@ function renderAdvisoryClasses() {
     return;
   }
 
-  container.innerHTML = advisoryAssignmentsCache.map((assignment) => `
+  container.innerHTML = advisoryAssignmentsCache.map((assignment) => {
+    const sortedStudents = sortAdvisoryStudents(assignment.students);
+    const pageState = getAdvisoryPageState(assignment.id);
+    const usePagination =
+      typeof TablePagination !== "undefined" && TablePagination.paginateArray;
+
+    let pageStudents = sortedStudents;
+    if (usePagination && sortedStudents.length > 0) {
+      const totalPages = TablePagination.getTotalPages(sortedStudents.length, pageState.perPage);
+      pageState.page = TablePagination.clampPage(pageState.page, totalPages);
+      pageStudents = TablePagination.paginateArray(sortedStudents, pageState.page, pageState.perPage);
+    }
+
+    const rowsHtml = pageStudents
+      .map(
+        (student) => `
+                <tr class="border-b border-gray-100 last:border-0">
+                  <td class="py-1.5 pr-4">${student.lrn}</td>
+                  <td class="py-1.5 pr-4">
+                    ${student.last_name}, ${student.first_name}${student.middle_name ? ` ${student.middle_name}` : ""}
+                  </td>
+                  <td class="py-1.5">
+                    <button
+                      type="button"
+                      class="remove-student-btn text-gray-400 hover:text-red-500"
+                      data-assignment-id="${assignment.id}"
+                      data-student-id="${student.id}"
+                    >✕</button>
+                  </td>
+                </tr>
+              `
+      )
+      .join("");
+
+    return `
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5" data-assignment-id="${assignment.id}">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-semibold text-gray-800">${sectionLabel(assignment)}</h3>
@@ -38,49 +102,11 @@ function renderAdvisoryClasses() {
             </tr>
           </thead>
           <tbody>
-            ${[...assignment.students]
-              .sort((a, b) => {
-                const lastNameCompare = (a.last_name || "").localeCompare(
-                  b.last_name || "",
-                  undefined,
-                  { sensitivity: "base" }
-                );
-
-                if (lastNameCompare !== 0) return lastNameCompare;
-
-                const firstNameCompare = (a.first_name || "").localeCompare(
-                  b.first_name || "",
-                  undefined,
-                  { sensitivity: "base" }
-                );
-
-                if (firstNameCompare !== 0) return firstNameCompare;
-
-                return (a.middle_name || "").localeCompare(
-                  b.middle_name || "",
-                  undefined,
-                  { sensitivity: "base" }
-                );
-              })
-              .map((student) => `
-                <tr class="border-b border-gray-100 last:border-0">
-                  <td class="py-1.5 pr-4">${student.lrn}</td>
-                  <td class="py-1.5 pr-4">
-                    ${student.last_name}, ${student.first_name}${student.middle_name ? ` ${student.middle_name}` : ""}
-                  </td>
-                  <td class="py-1.5">
-                    <button
-                      type="button"
-                      class="remove-student-btn text-gray-400 hover:text-red-500"
-                      data-assignment-id="${assignment.id}"
-                      data-student-id="${student.id}"
-                    >✕</button>
-                  </td>
-                </tr>
-              `).join("")}
+            ${rowsHtml}
           </tbody>
         </table>
         ${assignment.students.length === 0 ? `<p class="text-sm text-gray-400 py-2">No students added yet.</p>` : ""}
+        <div id="advisory-pagination-${assignment.id}"></div>
       </div>
 
       <div class="flex flex-col sm:flex-row gap-2">
@@ -108,7 +134,36 @@ function renderAdvisoryClasses() {
         <button type="button" class="add-student-btn btn-secondary text-sm px-4" data-assignment-id="${assignment.id}">Add Student</button>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
+
+  // Render one pagination control per section (client-side, 10 / 25 / 50).
+  if (typeof TablePagination !== "undefined" && TablePagination.renderPagination) {
+    advisoryAssignmentsCache.forEach((assignment) => {
+      const holder = document.getElementById(`advisory-pagination-${assignment.id}`);
+      if (!holder) return;
+      const total = (assignment.students || []).length;
+      if (total === 0) {
+        holder.innerHTML = "";
+        return;
+      }
+      const pageState = getAdvisoryPageState(assignment.id);
+      TablePagination.renderPagination(holder, {
+        page: pageState.page,
+        totalItems: total,
+        perPage: pageState.perPage,
+        onPageChange: (newPage) => {
+          pageState.page = newPage;
+          renderAdvisoryClasses();
+        },
+        onPerPageChange: (newSize) => {
+          pageState.perPage = newSize;
+          pageState.page = 1;
+          renderAdvisoryClasses();
+        },
+      });
+    });
+  }
 
   attachAdvisoryClassListeners();
 }

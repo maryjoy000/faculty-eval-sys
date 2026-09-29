@@ -212,6 +212,18 @@ function attachAnnouncementFormListener() {
 
 let accountsCache = [];
 
+var accountsTablePager = null;
+function getAccountsTablePager() {
+  if (!accountsTablePager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      accountsTablePager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      accountsTablePager = null;
+    }
+  }
+  return accountsTablePager;
+}
+
 async function loadAccounts() {
   try {
     accountsCache = await apiGet("/accounts");
@@ -258,10 +270,20 @@ function renderAccountsTable() {
         </td>
       </tr>
     `;
+    const emptyPager = getAccountsTablePager();
+    if (emptyPager) {
+      emptyPager.render("accounts-pagination", 0, renderAccountsTable);
+    } else {
+      const fallbackContainer = document.getElementById("accounts-pagination");
+      if (fallbackContainer) fallbackContainer.innerHTML = "";
+    }
     return;
   }
 
-  tableBody.innerHTML = accounts
+  const pager = getAccountsTablePager();
+  const pageItems = pager ? pager.paginate(accounts) : accounts;
+
+  tableBody.innerHTML = pageItems
     .map(
       (account) => `
       <tr class="border-b border-gray-200 last:border-0">
@@ -306,6 +328,10 @@ function renderAccountsTable() {
     .join("");
 
   attachAccountRowListeners();
+
+  if (pager) {
+    pager.render("accounts-pagination", accounts.length, renderAccountsTable);
+  }
 }
 
 function attachAccountRowListeners() {
@@ -343,11 +369,19 @@ function attachAccountRowListeners() {
 function attachAccountFilterListeners() {
   document
     .getElementById("account-search-input")
-    .addEventListener("input", renderAccountsTable);
+    .addEventListener("input", () => {
+      const pager = getAccountsTablePager();
+      if (pager) pager.reset();
+      renderAccountsTable();
+    });
 
   document
     .getElementById("account-role-filter")
-    .addEventListener("change", renderAccountsTable);
+    .addEventListener("change", () => {
+      const pager = getAccountsTablePager();
+      if (pager) pager.reset();
+      renderAccountsTable();
+    });
 }
 
 function openAccountModal(accountId) {

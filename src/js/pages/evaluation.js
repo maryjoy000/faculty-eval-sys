@@ -23,6 +23,18 @@ let currentFacultyBeingObserved = null;
 let currentDomainIndex = 0;
 const observationAnswers = {};
 
+var evaluationFacultyPager = null;
+function getEvaluationFacultyPager() {
+  if (!evaluationFacultyPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      evaluationFacultyPager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      evaluationFacultyPager = null;
+    }
+  }
+  return evaluationFacultyPager;
+}
+
 // --- Render the faculty selection table ---
 async function renderEvaluationFacultyTable() {
   const tableBody = document.getElementById("evaluation-faculty-table-body");
@@ -40,19 +52,32 @@ async function renderEvaluationFacultyTable() {
     console.error("Failed to load classroom observations:", error);
   }
 
-  tableBody.innerHTML = roster
-    .map((faculty) => {
-      const observationData = observations.find(
-        (item) => String(item.faculty_id) === String(faculty.id),
-      );
+  tableBody.innerHTML = "";
+  const pager = getEvaluationFacultyPager();
+  const pageRoster = pager ? pager.paginate(roster) : roster;
 
-      const isObserved = !!observationData;
+  if (pageRoster.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="py-6 text-center text-gray-400">
+          No faculty found.
+        </td>
+      </tr>
+    `;
+  } else {
+    tableBody.innerHTML = pageRoster
+      .map((faculty) => {
+        const observationData = observations.find(
+          (item) => String(item.faculty_id) === String(faculty.id),
+        );
 
-      const actionButtonHtml = isObserved
-        ? `<button type="button" class="view-observation-results-btn btn-secondary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">View Results</button>`
-        : `<button type="button" class="start-observation-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Observe</button>`;
+        const isObserved = !!observationData;
 
-      return `
+        const actionButtonHtml = isObserved
+          ? `<button type="button" class="view-observation-results-btn btn-secondary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">View Results</button>`
+          : `<button type="button" class="start-observation-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Observe</button>`;
+
+        return `
       <tr class="border-b border-gray-200 last:border-0">
         <td class="py-3 pr-4">${faculty.name}</td>
         <td class="py-3 pr-4">${(faculty.subjects || [])
@@ -68,8 +93,16 @@ async function renderEvaluationFacultyTable() {
         <td class="py-3">${actionButtonHtml}</td>
       </tr>
     `;
-    })
-    .join("");
+      })
+      .join("");
+  }
+
+  if (pager) {
+    pager.render("evaluation-faculty-pagination", roster.length, renderEvaluationFacultyTable);
+  } else {
+    const fallbackContainer = document.getElementById("evaluation-faculty-pagination");
+    if (fallbackContainer) fallbackContainer.innerHTML = "";
+  }
 
   document.querySelectorAll(".start-observation-btn").forEach((btn) => {
     btn.addEventListener("click", () =>

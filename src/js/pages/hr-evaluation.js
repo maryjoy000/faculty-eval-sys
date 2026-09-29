@@ -17,6 +17,18 @@ let currentFacultyBeingEvaluated = null;
 
 const hrAnswers = {};
 
+var hrFacultyPager = null;
+function getHrFacultyPager() {
+  if (!hrFacultyPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      hrFacultyPager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      hrFacultyPager = null;
+    }
+  }
+  return hrFacultyPager;
+}
+
 async function loadHrEvaluationData() {
   const [criteria, scale, faculty] = await Promise.all([
     apiGet("/evaluation-criteria/hrEvaluation"),
@@ -49,11 +61,23 @@ async function renderHrFacultyTable() {
   try {
     const statusMap = await getHrEvaluationStatus();
 
-    tableBody.innerHTML = facultyRosterCache.map((faculty) => {
-      const status = statusMap.get(String(faculty.id));
-      const isEvaluated = Boolean(status?.completed);
+    const pager = getHrFacultyPager();
+    const pageItems = pager ? pager.paginate(facultyRosterCache) : facultyRosterCache;
 
-      return `
+    if (pageItems.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="3" class="py-6 text-center text-gray-400">
+            No faculty found.
+          </td>
+        </tr>
+      `;
+    } else {
+      tableBody.innerHTML = pageItems.map((faculty) => {
+        const status = statusMap.get(String(faculty.id));
+        const isEvaluated = Boolean(status?.completed);
+
+        return `
         <tr class="border-b border-gray-200 last:border-0">
           <td class="py-3 pr-4">${faculty.name}</td>
 
@@ -77,7 +101,15 @@ async function renderHrFacultyTable() {
           </td>
         </tr>
       `;
-    }).join("");
+      }).join("");
+    }
+
+    if (pager) {
+      pager.render("hr-faculty-pagination", facultyRosterCache.length, renderHrFacultyTable);
+    } else {
+      const fallbackContainer = document.getElementById("hr-faculty-pagination");
+      if (fallbackContainer) fallbackContainer.innerHTML = "";
+    }
 
     document
       .querySelectorAll(".start-peer-eval-btn:not(:disabled)")

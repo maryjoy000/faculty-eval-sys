@@ -40,52 +40,68 @@ async function getEvaluationStatus(facultyId) {
 }
 
 // ============================================
-// RENDER FACULTY TABLE
+// RENDER FACULTY TABLE (paginated: 10 / 25 / 50 per page)
 // ============================================
 
-async function renderFacultyTable() {
-  const tableBody =
-    document.getElementById("faculty-table-body");
+var studentFacultyPager = null;
+function getStudentFacultyPager() {
+  if (!studentFacultyPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      studentFacultyPager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      studentFacultyPager = null;
+    }
+  }
+  return studentFacultyPager;
+}
 
+// Cached full lists so page navigation does not refetch statuses.
+let studentFacultyListCache = [];
+let studentEvalStatusCache = [];
+let studentPeriodStatusCache = { isOpen: true };
+
+function renderStudentFacultyPage() {
+  const tableBody = document.getElementById("faculty-table-body");
   if (!tableBody) return;
 
-  const facultyList = getStudentFacultyList();
-  const periodStatus = checkEvaluationPeriodStatus();
+  const pager = getStudentFacultyPager();
+  const combined = studentFacultyListCache.map((item, index) => ({
+    item,
+    evalData: studentEvalStatusCache[index] || { status: "not-evaluated" },
+  }));
+  const pageRows = pager ? pager.paginate(combined) : combined;
+  const periodStatus = studentPeriodStatusCache;
 
-  const evaluationStatuses = await Promise.all(
-    facultyList.map((item) =>
-      getEvaluationStatus(item.facultyId)
-    )
-  );
+  if (pageRows.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="py-6 text-center text-gray-400">
+          No faculty found.
+        </td>
+      </tr>
+    `;
+  } else {
+    tableBody.innerHTML = pageRows
+      .map(({ item, evalData }) => {
+        const isEvaluated = evalData.status === "evaluated";
 
-  tableBody.innerHTML = facultyList
-    .map((item, index) => {
-      const evalData = evaluationStatuses[index];
+        const statusLabel = isEvaluated ? "Evaluated" : "Not yet evaluated";
 
-      const isEvaluated =
-        evalData.status === "evaluated";
+        const statusClass = isEvaluated ? "text-green-600 font-medium" : "text-brand font-medium";
 
-      const statusLabel = isEvaluated
-        ? "Evaluated"
-        : "Not yet evaluated";
+        let actionButtonHtml;
 
-      const statusClass = isEvaluated
-        ? "text-green-600 font-medium"
-        : "text-brand font-medium";
-
-      let actionButtonHtml;
-
-      if (isEvaluated) {
-        actionButtonHtml = `
+        if (isEvaluated) {
+          actionButtonHtml = `
           <button
-            data-index="${index}"
+            data-faculty-id="${item.facultyId}"
             class="view-results-btn btn-secondary text-sm px-4 py-1.5"
           >
             View Results
           </button>
         `;
-      } else if (!periodStatus.isOpen) {
-        actionButtonHtml = `
+        } else if (!periodStatus.isOpen) {
+          actionButtonHtml = `
           <button
             disabled
             class="btn-primary text-sm px-4 py-1.5 opacity-40 cursor-not-allowed"
@@ -93,18 +109,18 @@ async function renderFacultyTable() {
             Evaluate
           </button>
         `;
-      } else {
-        actionButtonHtml = `
+        } else {
+          actionButtonHtml = `
           <button
-            data-index="${index}"
+            data-faculty-id="${item.facultyId}"
             class="evaluate-btn btn-primary text-sm px-4 py-1.5"
           >
             Evaluate
           </button>
         `;
-      }
+        }
 
-      return `
+        return `
         <tr class="border-b border-gray-200 last:border-0">
           <td class="py-3 pr-4">${item.faculty}</td>
 
@@ -121,46 +137,72 @@ async function renderFacultyTable() {
           </td>
         </tr>
       `;
-    })
-    .join("");
+      })
+      .join("");
+  }
 
   document.querySelectorAll(".evaluate-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const index = btn.dataset.index;
-      const selected = facultyList[index];
+      const selected = studentFacultyListCache.find(
+        (entry) => String(entry.facultyId) === String(btn.dataset.facultyId)
+      );
+      if (!selected) return;
 
       sessionStorage.removeItem("evaluationAnswers");
       sessionStorage.removeItem("draftComment");
 
-      sessionStorage.setItem(
-        "evaluatingFaculty",
-        JSON.stringify(selected)
-      );
+      sessionStorage.setItem("evaluatingFaculty", JSON.stringify(selected));
 
       window.location.href = "rate-faculty.html";
     });
   });
 
-  document
-    .querySelectorAll(".view-results-btn")
-    .forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const index = btn.dataset.index;
-        const selected = facultyList[index];
+  document.querySelectorAll(".view-results-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const selected = studentFacultyListCache.find(
+        (entry) => String(entry.facultyId) === String(btn.dataset.facultyId)
+      );
+      if (!selected) return;
 
-        // Always retrieve the result from the backend
-        // for the currently authenticated student.
-        const evalData = await getEvaluationStatus(
-          selected.facultyId
-        );
+      // Always retrieve the result from the backend
+      // for the currently authenticated student.
+      const evalData = await getEvaluationStatus(selected.facultyId);
 
-        if (evalData.status !== "evaluated") {
-          return;
-        }
+      if (evalData.status !== "evaluated") {
+        return;
+      }
 
-        showResultsModal(selected, evalData);
-      });
+      showResultsModal(selected, evalData);
     });
+  });
+
+  if (pager) {
+    pager.render("faculty-table-pagination", combined.length, renderStudentFacultyPage);
+  } else {
+    const fallbackContainer = document.getElementById("faculty-table-pagination");
+    if (fallbackContainer) fallbackContainer.innerHTML = "";
+  }
+}
+
+async function renderFacultyTable() {
+  const tableBody = document.getElementById("faculty-table-body");
+
+  if (!tableBody) return;
+
+  const facultyList = getStudentFacultyList();
+  const periodStatus = checkEvaluationPeriodStatus();
+
+  const evaluationStatuses = await Promise.all(
+    facultyList.map((item) => getEvaluationStatus(item.facultyId))
+  );
+
+  studentFacultyListCache = facultyList;
+  studentEvalStatusCache = evaluationStatuses;
+  studentPeriodStatusCache = periodStatus;
+
+  const pager = getStudentFacultyPager();
+  if (pager) pager.reset();
+  renderStudentFacultyPage();
 }
 
 // ============================================

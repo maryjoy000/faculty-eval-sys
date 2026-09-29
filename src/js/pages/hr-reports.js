@@ -12,6 +12,58 @@ function mountPageContent() {
 
 let hrFacultyRoster = [];
 let hrReportDataCache = {};
+let hrReportRowsCache = [];
+
+var hrReportsPager = null;
+function getHrReportsPager() {
+  if (!hrReportsPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      hrReportsPager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      hrReportsPager = null;
+    }
+  }
+  return hrReportsPager;
+}
+
+function renderHrReportsPage() {
+  const tableBody = document.getElementById("hr-reports-table-body");
+  if (!tableBody) return;
+
+  const pager = getHrReportsPager();
+  const pageRows = pager ? pager.paginate(hrReportRowsCache) : hrReportRowsCache;
+
+  if (pageRows.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-6 text-center text-gray-400">
+          No reports found.
+        </td>
+      </tr>
+    `;
+  } else {
+    tableBody.innerHTML = pageRows.map(({ rowHtml }) => rowHtml).join("");
+  }
+
+  document.querySelectorAll(".view-report-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const faculty = hrFacultyRoster.find(
+        (f) => String(f.id) === btn.dataset.facultyId
+      );
+
+      if (faculty) {
+        showReportDetail(faculty);
+      }
+    });
+  });
+
+  if (pager) {
+    pager.render("hr-reports-pagination", hrReportRowsCache.length, renderHrReportsPage);
+  } else {
+    const fallbackContainer = document.getElementById("hr-reports-pagination");
+    if (fallbackContainer) fallbackContainer.innerHTML = "";
+  }
+}
 
 // --- Render the summary table ---
 async function renderReportsTable() {
@@ -33,20 +85,26 @@ async function renderReportsTable() {
   }
 
   const rows = await Promise.all(hrFacultyRoster.map(async (faculty) => {
-    const summary = await apiGet(`/evaluations/${faculty.id}`);
-    const classroomData = summary.per_type?.classroomObservation
+    let summary = null;
+    try {
+      summary = await apiGet(`/evaluations/${faculty.id}`);
+    } catch (error) {
+      console.error(`Failed to load report for faculty ${faculty.id}:`, error);
+      summary = null;
+    }
+    const classroomData = summary?.per_type?.classroomObservation
       ? { average: summary.per_type.classroomObservation.average_rating }
       : null;
 
-    const studentData = summary.per_type?.student
+    const studentData = summary?.per_type?.student
       ? { average: summary.per_type.student.average_rating }
       : null;
 
-    const peerData = summary.per_type?.peerToPeer
+    const peerData = summary?.per_type?.peerToPeer
       ? { average: summary.per_type.peerToPeer.average_rating }
       : null;
 
-    const hrData = summary.per_type?.hrEvaluation
+    const hrData = summary?.per_type?.hrEvaluation
       ? { average: summary.per_type.hrEvaluation.average_rating }
       : null;
 
@@ -55,7 +113,8 @@ async function renderReportsTable() {
         ? `<span class="text-green-600 font-medium">${data.average.toFixed(2)}</span>`
         : `<span class="text-gray-400">—</span>`;
 
-    return `
+    return {
+      rowHtml: `
       <tr class="border-b border-gray-200 last:border-0">
         <td class="py-3 pr-4">${faculty.name}</td>
         <td class="py-3 pr-4">${cell(classroomData)}</td>
@@ -72,22 +131,14 @@ async function renderReportsTable() {
           </button>
         </td>
       </tr>
-    `;
+    `,
+    };
     }));
 
-  tableBody.innerHTML = rows.join("");
-
-  document.querySelectorAll(".view-report-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const faculty = hrFacultyRoster.find(
-        (f) => String(f.id) === btn.dataset.facultyId
-      );
-
-      if (faculty) {
-        showReportDetail(faculty);
-      }
-    });
-  });
+  hrReportRowsCache = rows;
+  const pager = getHrReportsPager();
+  if (pager) pager.reset();
+  renderHrReportsPage();
 }
 
 let currentReportFaculty = null;

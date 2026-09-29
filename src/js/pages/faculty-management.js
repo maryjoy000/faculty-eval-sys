@@ -14,6 +14,20 @@ function mountPageContent() {
 // --- Cache, fetched once at load and refreshed after every mutation ---
 let advisoryAssignmentsCache = [];
 
+// Pagination state for the faculty table (10 / 25 / 50 per page).
+// Created lazily so the page still works if pagination.js fails to load.
+var facultyTablePager = null;
+function getFacultyTablePager() {
+  if (!facultyTablePager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      facultyTablePager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      facultyTablePager = null;
+    }
+  }
+  return facultyTablePager;
+}
+
 async function loadFacultyRoster() {
   facultyRosterCache = await apiGet("/faculty");
   advisoryAssignmentsCache = await apiGet("/advisory");
@@ -139,10 +153,20 @@ function renderFacultyManagementTable() {
     tableBody.innerHTML = `
       <tr><td colspan="6" class="py-6 text-center text-gray-400">No faculty found.</td></tr>
     `;
+    const emptyPager = getFacultyTablePager();
+    if (emptyPager) {
+      emptyPager.render("faculty-management-pagination", 0, renderFacultyManagementTable);
+    } else {
+      const fallbackContainer = document.getElementById("faculty-management-pagination");
+      if (fallbackContainer) fallbackContainer.innerHTML = "";
+    }
     return;
   }
 
-  tableBody.innerHTML = filteredFaculty.map((faculty) => {
+  const pager = getFacultyTablePager();
+  const pageItems = pager ? pager.paginate(filteredFaculty) : filteredFaculty;
+
+  tableBody.innerHTML = pageItems.map((faculty) => {
     const sections = getFacultySections(faculty).map(
       (section) => `${section.grade_level} ${section.name}`
     );
@@ -170,6 +194,10 @@ function renderFacultyManagementTable() {
   }).join("");
 
   attachDropdownListeners();
+
+  if (pager) {
+    pager.render("faculty-management-pagination", filteredFaculty.length, renderFacultyManagementTable);
+  }
 }
 
 function attachDropdownListeners() {
@@ -587,10 +615,18 @@ function attachFilterListeners() {
   const statusFilter = document.getElementById("status-filter");
 
   if (searchInput) {
-    searchInput.addEventListener("input", renderFacultyManagementTable);
+    searchInput.addEventListener("input", () => {
+      const pager = getFacultyTablePager();
+      if (pager) pager.reset();
+      renderFacultyManagementTable();
+    });
   }
   if (statusFilter) {
-    statusFilter.addEventListener("change", renderFacultyManagementTable);
+    statusFilter.addEventListener("change", () => {
+      const pager = getFacultyTablePager();
+      if (pager) pager.reset();
+      renderFacultyManagementTable();
+    });
   }
 }
 

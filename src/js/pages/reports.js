@@ -15,6 +15,113 @@ let facultyRoster = [];
 let currentReportFaculty = null;
 let currentReportTab = "combined";
 let hrReportDataCache = {};
+// Cached rows for the paginated list view: [{ faculty, report }]
+let adminReportRowsCache = [];
+
+var adminReportsPager = null;
+function getAdminReportsPager() {
+  if (!adminReportsPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      adminReportsPager = TablePagination.create({ defaultPerPage: 10 });
+    } else {
+      adminReportsPager = null;
+    }
+  }
+  return adminReportsPager;
+}
+
+function renderAdminReportsPage() {
+  const tableBody = document.getElementById("admin-reports-table-body");
+  if (!tableBody) return;
+
+  const pager = getAdminReportsPager();
+  const pageRows = pager ? pager.paginate(adminReportRowsCache) : adminReportRowsCache;
+
+  if (pageRows.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-6 text-center text-gray-400">
+          No reports found.
+        </td>
+      </tr>
+    `;
+  } else {
+    tableBody.innerHTML = pageRows
+      .map(({ faculty, report }) => {
+        const classroomData = report?.per_type?.classroomObservation;
+        const studentData = report?.per_type?.student;
+        const peerData = report?.per_type?.peerToPeer;
+        const hrData = report?.per_type?.hrEvaluation;
+
+        const cell = (data) => {
+          if (
+            data &&
+            typeof data.average_rating === "number"
+          ) {
+            return `
+              <span class="text-green-600 font-medium">
+                ${data.average_rating.toFixed(2)}
+              </span>
+            `;
+          }
+
+          return `<span class="text-gray-400">—</span>`;
+        };
+
+        return `
+          <tr class="border-b border-gray-200 last:border-0">
+            <td class="py-3 pr-4">${faculty.name}</td>
+
+            <td class="py-3 pr-4">
+              ${cell(classroomData)}
+            </td>
+
+            <td class="py-3 pr-4">
+              ${cell(studentData)}
+            </td>
+
+            <td class="py-3 pr-4">
+              ${cell(peerData)}
+            </td>
+
+            <td class="py-3 pr-4">
+              ${cell(hrData)}
+            </td>
+
+            <td class="py-3">
+              <button
+                type="button"
+                class="view-report-btn text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+                data-faculty-id="${faculty.id}"
+              >
+                View Report
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  document.querySelectorAll(".view-report-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const faculty = facultyRoster.find(
+        (f) => String(f.id) === btn.dataset.facultyId
+      );
+
+      if (faculty) {
+        showReportDetail(faculty);
+      }
+    });
+  });
+
+  if (pager) {
+    pager.render("admin-reports-pagination", adminReportRowsCache.length, renderAdminReportsPage);
+  } else {
+    const fallbackContainer = document.getElementById("admin-reports-pagination");
+    if (fallbackContainer) fallbackContainer.innerHTML = "";
+  }
+}
 // ============================================
 // LOAD REPORT LIST
 // ============================================
@@ -74,74 +181,14 @@ async function renderReportsTable() {
       })
     );
 
-    tableBody.innerHTML = activeFaculty
-      .map((faculty, index) => {
-        const report = reportResults[index];
-        const classroomData = report?.per_type?.classroomObservation;
-        const studentData = report?.per_type?.student;
-        const peerData = report?.per_type?.peerToPeer;
-        const hrData = report?.per_type?.hrEvaluation;
+    adminReportRowsCache = activeFaculty.map((faculty, index) => ({
+      faculty,
+      report: reportResults[index],
+    }));
 
-        const cell = (data) => {
-          if (
-            data &&
-            typeof data.average_rating === "number"
-          ) {
-            return `
-              <span class="text-green-600 font-medium">
-                ${data.average_rating.toFixed(2)}
-              </span>
-            `;
-          }
-
-          return `<span class="text-gray-400">—</span>`;
-        };
-
-        return `
-          <tr class="border-b border-gray-200 last:border-0">
-            <td class="py-3 pr-4">${faculty.name}</td>
-
-            <td class="py-3 pr-4">
-              ${cell(classroomData)}
-            </td>
-
-            <td class="py-3 pr-4">
-              ${cell(studentData)}
-            </td>
-
-            <td class="py-3 pr-4">
-              ${cell(peerData)}
-            </td>
-
-            <td class="py-3 pr-4">
-              ${cell(hrData)}
-            </td>
-
-            <td class="py-3">
-              <button
-                type="button"
-                class="view-report-btn text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
-                data-faculty-id="${faculty.id}"
-              >
-                View Report
-              </button>
-            </td>
-          </tr>
-        `;
-      })
-      .join("");
-
-    document.querySelectorAll(".view-report-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const faculty = facultyRoster.find(
-          (f) => String(f.id) === btn.dataset.facultyId
-        );
-
-        if (faculty) {
-          showReportDetail(faculty);
-        }
-      });
-    });
+    const pager = getAdminReportsPager();
+    if (pager) pager.reset();
+    renderAdminReportsPage();
   } catch (error) {
     console.error("Failed to load Admin Reports:", error);
 
