@@ -412,7 +412,7 @@ function renderPartsEditor() {
       const titleParts = splitTitleSubtitle(part.title || "");
 
       return `
-        <div class="border border-gray-200 rounded-lg p-4">
+        <div class="part-card border border-gray-200 rounded-lg p-4">
 
           <div class="flex items-start justify-between gap-2 mb-3">
 
@@ -815,6 +815,28 @@ function attachAddPartListener() {
     });
 
     renderPartsEditor();
+
+    // The new Part is always appended last. Scroll it into view and
+    // focus its Title input (text selected) so the user immediately
+    // sees it and can type a replacement title right away.
+    const titleInputs = document.querySelectorAll(
+      "#parts-editor-container .part-title-input"
+    );
+    const newTitleInput = titleInputs[titleInputs.length - 1];
+
+    if (newTitleInput) {
+      const card = newTitleInput.closest(".part-card");
+
+      if (card && typeof card.scrollIntoView === "function") {
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      newTitleInput.focus({ preventScroll: true });
+
+      if (typeof newTitleInput.select === "function") {
+        newTitleInput.select();
+      }
+    }
   });
 }
 
