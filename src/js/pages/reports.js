@@ -77,7 +77,7 @@ function renderAdminReportsPage() {
   if (pageRows.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="py-6 text-center text-gray-400">
+        <td colspan="7" class="py-6 text-center text-gray-400">
           No reports found.
         </td>
       </tr>
@@ -105,6 +105,16 @@ function renderAdminReportsPage() {
           return `<span class="text-gray-400">—</span>`;
         };
 
+        const sentiment = report?.dominant_sentiment || null;
+        const sentimentClass =
+          sentiment === "Positive"
+            ? "text-green-600"
+            : sentiment === "Negative"
+              ? "text-red-600"
+              : sentiment === "Neutral"
+                ? "text-amber-600"
+                : "text-gray-400";
+
         return `
           <tr class="border-b border-gray-200 last:border-0">
             <td class="py-3 pr-4">${faculty.name}</td>
@@ -123,6 +133,12 @@ function renderAdminReportsPage() {
 
             <td class="py-3 pr-4">
               ${cell(hrData)}
+            </td>
+
+            <td class="py-3 pr-4">
+              <span class="${sentimentClass} font-medium text-sm">
+                ${sentiment || "—"}
+              </span>
             </td>
 
             <td class="py-3">
@@ -176,6 +192,83 @@ function attachReportsFilterListeners() {
       if (pager) pager.reset();
       renderAdminReportsPage();
     });
+
+  document
+    .getElementById("reports-export-btn")
+    ?.addEventListener("click", exportReportsWorkbook);
+}
+
+function exportReportsWorkbook() {
+  if (typeof XLSX === "undefined" || !XLSX.utils) {
+    alert("Spreadsheet library failed to load. Please refresh the page and try again.");
+    return;
+  }
+
+  const rows = getFilteredReportRows();
+
+  if (!rows.length) {
+    alert("There are no reports to export.");
+    return;
+  }
+
+  const avgOf = (data) =>
+    data && typeof data.average_rating === "number" ? data.average_rating : "";
+
+  const workbook = XLSX.utils.book_new();
+
+  const listSheet = XLSX.utils.aoa_to_sheet([
+    ["Faculty Name", "Classroom Obs.", "Student", "Peer-to-Peer", "HR", "Sentiment"],
+    ...rows.map(({ faculty, report }) => [
+      faculty.name || "",
+      avgOf(report?.per_type?.classroomObservation),
+      avgOf(report?.per_type?.student),
+      avgOf(report?.per_type?.peerToPeer),
+      avgOf(report?.per_type?.hrEvaluation),
+      (report && report.dominant_sentiment) || "",
+    ]),
+  ]);
+  listSheet["!cols"] = [
+    { wch: 28 }, { wch: 15 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, listSheet, "Reports");
+
+  const typeKeys = [
+    "classroomObservation",
+    "student",
+    "peerToPeer",
+    "hrEvaluation",
+  ];
+  const summaryBody = typeKeys.map((key) => {
+    const values = rows
+      .map(({ report }) => report?.per_type?.[key])
+      .filter((data) => data && typeof data.average_rating === "number")
+      .map((data) => data.average_rating);
+
+    return [
+      key,
+      values.length,
+      values.length
+        ? Number((values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2))
+        : "—",
+    ];
+  });
+
+  const withAnyResults = rows.filter(({ report }) => reportHasResults(report)).length;
+
+  const summarySheet = XLSX.utils.aoa_to_sheet([
+    ["Evaluation Type", "Faculty With Results", "Average Rating"],
+    ...summaryBody,
+    [],
+    ["Total faculty listed", rows.length],
+    ["Faculty with any results", withAnyResults],
+  ]);
+  summarySheet["!cols"] = [{ wch: 24 }, { wch: 22 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  XLSX.writeFile(
+    workbook,
+    `faculty-reports-${new Date().toISOString().slice(0, 10)}.xlsx`
+  );
 }
 // ============================================
 // LOAD REPORT LIST
@@ -249,7 +342,7 @@ async function renderReportsTable() {
 
     tableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="py-6 text-center text-gray-400">
+        <td colspan="7" class="py-6 text-center text-gray-400">
           Unable to load reports.
         </td>
       </tr>

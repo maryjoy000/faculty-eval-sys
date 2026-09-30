@@ -20,10 +20,15 @@ let weightingCache = {
   ...DEFAULT_WEIGHTING
 };
 
-async function loadWeighting() {
+async function loadWeighting(termId) {
+  const query =
+    termId !== undefined && termId !== null && termId !== ""
+      ? `?term_id=${encodeURIComponent(termId)}`
+      : "";
+
   try {
     const response = await fetch(
-      `${window.FES_API_BASE}/evaluation-weightings`,
+      `${window.FES_API_BASE}/evaluation-weightings${query}`,
       {
         credentials: "include"
       }
@@ -54,7 +59,21 @@ function getWeighting() {
   return weightingCache;
 }
 
-async function saveWeighting(weighting) {
+async function saveWeighting(weighting, termId) {
+  const body = {
+    classroom_observation_pct: weighting.classroomObservation,
+    domain6_share_pct: weighting.domain6Share,
+    domain7_share_pct: weighting.domain7Share,
+    peer_share_of_domain6_pct: weighting.peerShareOfDomain6,
+    student_share_of_domain6_pct: weighting.studentShareOfDomain6
+  };
+
+  // Only send term_id when editing a specific term. Absent/null means
+  // the default (global) weighting — sending "" would 404 on the backend.
+  if (termId !== undefined && termId !== null && termId !== "") {
+    body.term_id = Number(termId);
+  }
+
   const response = await fetch(
     `${window.FES_API_BASE}/evaluation-weightings`,
     {
@@ -63,13 +82,7 @@ async function saveWeighting(weighting) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        classroom_observation_pct: weighting.classroomObservation,
-        domain6_share_pct: weighting.domain6Share,
-        domain7_share_pct: weighting.domain7Share,
-        peer_share_of_domain6_pct: weighting.peerShareOfDomain6,
-        student_share_of_domain6_pct: weighting.studentShareOfDomain6
-      })
+      body: JSON.stringify(body)
     }
   );
 

@@ -199,3 +199,27 @@ def test_overview_respects_term(admin_client):
     ).get_json()
     assert scoped["total_evaluations"] == 1
     assert scoped["evaluations_by_type"]["student"] == 1
+
+
+def test_summary_dominant_sentiment(admin_client):
+    from app.services.aggregation_service import get_faculty_evaluation_summary
+
+    with admin_client.application.app_context():
+        ana = Faculty.query.filter_by(name="Ana Layson").first()
+        ana_evals = Evaluation.query.filter_by(faculty_id=ana.id).order_by(
+            Evaluation.id
+        ).all()
+        ana_evals[0].comments = "Great teaching!"
+        ana_evals[0].sentiment_label = "positive"
+        ana_evals[1].comments = "It was okay."
+        ana_evals[1].sentiment_label = "neutral"
+        db.session.commit()
+
+        summary = get_faculty_evaluation_summary(ana.id)
+        assert summary["dominant_sentiment"] == "Positive"
+
+        bob = Faculty.query.filter_by(name="Bob Cruz").first()
+        assert (
+            get_faculty_evaluation_summary(bob.id)["dominant_sentiment"]
+            is None
+        )

@@ -52,48 +52,6 @@ function attachTabListeners() {
 }
 
 // ============================================
-// ACADEMIC YEAR
-// ============================================
-
-async function loadAcademicYearForm() {
-  const settings = await loadSystemSettings();
-
-  document.getElementById("academic-year-input").value = settings.academicYear;
-
-  document.getElementById("semester-input").value = settings.semester;
-}
-
-function attachAcademicYearFormListener() {
-  document
-    .getElementById("academic-year-form")
-    .addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      try {
-        const academicYear = document
-          .getElementById("academic-year-input")
-          .value.trim();
-
-        const semester = document.getElementById("semester-input").value;
-
-        if (!academicYear) {
-          showToast("Academic Year is required.", "warning");
-          return;
-        }
-
-        await saveSystemSettings({
-          academicYear,
-          semester,
-        });
-
-        showToast("Academic year saved.", "success");
-      } catch (error) {
-        showError(error);
-      }
-    });
-}
-
-// ============================================
 // EVALUATION PERIOD
 // ============================================
 
@@ -517,8 +475,8 @@ function attachAccountModalListeners() {
 // SCORE WEIGHTING
 // ============================================
 
-async function loadWeightingForm() {
-  const w = await loadWeighting();
+async function loadWeightingForm(termId) {
+  const w = await loadWeighting(termId);
 
   document.getElementById("weight-classroom-input").value =
     w.classroomObservation;
@@ -533,6 +491,55 @@ async function loadWeightingForm() {
     w.studentShareOfDomain6;
 
   updateWeightingLiveDisplay();
+  updateWeightingScopeMsg();
+}
+
+function getSelectedWeightingTermId() {
+  const select = document.getElementById("weighting-term-select");
+  if (!select || !select.value) return null;
+  return select.value;
+}
+
+function populateWeightingTermSelect() {
+  const select = document.getElementById("weighting-term-select");
+  if (!select) return;
+
+  const previous = select.value;
+
+  select.innerHTML =
+    `<option value="">Default weighting</option>` +
+    termsCache
+      .map(
+        (term) =>
+          `<option value="${term.id}">${term.school_year} ${term.semester} Semester (${term.status})</option>`
+      )
+      .join("");
+
+  const stillExists =
+    previous &&
+    termsCache.some((term) => String(term.id) === String(previous));
+
+  select.value = stillExists ? previous : "";
+  updateWeightingScopeMsg();
+}
+
+function updateWeightingScopeMsg() {
+  const msg = document.getElementById("weighting-scope-msg");
+  if (!msg) return;
+
+  const termId = getSelectedWeightingTermId();
+
+  if (!termId) {
+    msg.textContent =
+      "Editing the default weighting — applies to all terms without their own weighting.";
+    return;
+  }
+
+  const term = termsCache.find((t) => String(t.id) === String(termId));
+
+  msg.textContent = term
+    ? `Editing weighting for ${term.school_year} ${term.semester} Semester.`
+    : "Editing weighting for the selected term.";
 }
 
 function updateWeightingLiveDisplay() {
@@ -624,6 +631,16 @@ function attachWeightingFormListener() {
   });
 
   document
+    .getElementById("weighting-term-select")
+    .addEventListener("change", async () => {
+      try {
+        await loadWeightingForm(getSelectedWeightingTermId());
+      } catch (error) {
+        showError(error);
+      }
+    });
+
+  document
     .getElementById("weighting-form")
     .addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -662,15 +679,30 @@ function attachWeightingFormListener() {
       }
 
       try {
+        const termId = getSelectedWeightingTermId();
+
         await saveWeighting({
           classroomObservation,
           domain6Share,
           domain7Share,
           peerShareOfDomain6,
           studentShareOfDomain6,
-        });
+        }, termId);
 
-        showToast("Weighting saved.", "success");
+        if (termId) {
+          const term = termsCache.find(
+            (t) => String(t.id) === String(termId)
+          );
+
+          showToast(
+            term
+              ? `Weighting saved for ${term.school_year} ${term.semester} Semester.`
+              : "Weighting saved.",
+            "success"
+          );
+        } else {
+          showToast("Weighting saved.", "success");
+        }
       } catch (error) {
         showError(error);
       }
@@ -683,10 +715,31 @@ function attachWeightingFormListener() {
 
 let termsCache = [];
 
+// Keeps the Academic Year display label (shown on evaluation forms and
+// printed reports) in sync with the open term, so there is a single
+// source of truth. A sync failure never blocks the term itself.
+async function syncAcademicYearLabel(term) {
+  try {
+    if (!term || !term.school_year) return;
+
+    const semester = String(term.semester || "")
+      .replace(/\s*Semester\s*$/i, "")
+      .trim();
+
+    await saveSystemSettings({
+      academicYear: String(term.school_year).trim(),
+      semester: semester || "1st",
+    });
+  } catch (error) {
+    console.error("Failed to sync academic year label:", error);
+  }
+}
+
 async function loadTerms() {
   try {
     termsCache = await apiGet("/school-terms");
     renderTermsTable();
+    populateWeightingTermSelect();
   } catch (error) {
     showError(error);
   }
@@ -743,7 +796,8 @@ function renderTermsTable() {
   document.querySelectorAll(".open-term-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
-        await apiPut(`/school-terms/${btn.dataset.termId}/open`, {});
+        const updated = await apiPut(`/school-terms/${btn.dataset.termId}/open`, {});
+        await syncAcademicYearLabel(updated);
         await loadTerms();
         showToast("Term opened.", "success");
       } catch (error) {
@@ -755,7 +809,8 @@ function renderTermsTable() {
   document.querySelectorAll(".reopen-term-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
-        await apiPut(`/school-terms/${btn.dataset.termId}/reopen`, {});
+        const updated = await apiPut(`/school-terms/${btn.dataset.termId}/reopen`, {});
+        await syncAcademicYearLabel(updated);
         await loadTerms();
         showToast("Term reopened.", "success");
       } catch (error) {
@@ -830,7 +885,6 @@ async function initializeSystemManagement() {
 
   attachTabListeners();
 
-  attachAcademicYearFormListener();
   attachEvaluationPeriodFormListener();
   attachAnnouncementFormListener();
 
@@ -841,7 +895,6 @@ async function initializeSystemManagement() {
   attachTermFormListener();
 
   await Promise.all([
-    loadAcademicYearForm(),
     loadEvaluationPeriodForm(),
     loadAnnouncementForm(),
     loadAccounts(),

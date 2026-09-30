@@ -36,6 +36,19 @@ def _apply_term_filter(query, term_id):
     return query
 
 
+def _rating_distribution(values):
+    """Count of each rating value 1-5 (for the per-question
+    distribution strips in report detail tabs)."""
+    distribution = {str(value): 0 for value in (1, 2, 3, 4, 5)}
+
+    for value in values or []:
+        key = str(value)
+        if key in distribution:
+            distribution[key] += 1
+
+    return distribution
+
+
 def get_faculty_evaluation_summary(faculty_id, term_id=None):
     per_type = {}
     sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
@@ -51,7 +64,7 @@ def get_faculty_evaluation_summary(faculty_id, term_id=None):
         evaluations = _apply_term_filter(evaluations_query, term_id).all()
 
         # Dominant sentiment is computed over comment-bearing types only
-        // (classroom observations carry no sentiment).
+        # (classroom observations carry no sentiment).
         if et.code in ("student", "peerToPeer", "hrEvaluation"):
             for evaluation in evaluations:
                 label = (evaluation.sentiment_label or "").strip().lower()
@@ -144,9 +157,19 @@ def get_faculty_evaluation_summary(faculty_id, term_id=None):
     else:
         weighted_overall_pct = None
 
+    total_comments = sum(sentiment_counts.values())
+
+    dominant_sentiment = None
+    if total_comments > 0:
+        dominant_sentiment = max(
+            ("Positive", "Neutral", "Negative"),
+            key=lambda label: sentiment_counts[label],
+        )
+
     return {
         "faculty_id": faculty_id,
         "per_type": per_type,
+        "dominant_sentiment": dominant_sentiment,
         "effective_weights": {
             key: round(value, 2)
             for key, value in effective_weights.items()
@@ -224,6 +247,7 @@ def get_classroom_observation_breakdown(faculty_id, term_id=None):
                 "hcec": rating,
                 "cot": rating + 1,
                 "level": get_cot_level_label(rating),
+                "distribution": _rating_distribution([rating]),
             })
 
         domain_average = sum(ratings) / len(ratings) if ratings else None
@@ -324,6 +348,7 @@ def get_student_evaluation_breakdown(faculty_id, term_id=None):
                 if average is not None
                 else None,
                 "response_count": len(values),
+                "distribution": _rating_distribution(values),
             })
 
         domain_average = (
@@ -473,7 +498,8 @@ def get_peer_evaluation_breakdown(faculty_id, term_id=None):
                 "indicator_number": index,
                 "text": question.text,
                 "average": round(average, 2),
-                "response_count": len(ratings)
+                "response_count": len(ratings),
+                "distribution": _rating_distribution(ratings),
             })
 
         domain_average = (
@@ -617,7 +643,8 @@ def get_hr_evaluation_breakdown(faculty_id, term_id=None):
             indicators.append({
                 "indicator_number": index,
                 "text": question.text,
-                "average": round(average, 2)
+                "average": round(average, 2),
+                "distribution": _rating_distribution(ratings),
             })
 
         domain_average = (

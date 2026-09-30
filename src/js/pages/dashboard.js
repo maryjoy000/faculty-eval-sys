@@ -527,11 +527,3 @@ document
   ?.addEventListener("click", exportRatingDistribution);
 
 initGlobalTermFilter(reloadDashboardData);
-
-(async () => {
-  await loadSystemSettings();
-  const el = document.getElementById("academic-year-display");
-  if (el) {
-    el.textContent = getAcademicYearDisplay();
-  }
-})();

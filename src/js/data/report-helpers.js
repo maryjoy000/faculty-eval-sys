@@ -34,7 +34,8 @@ function getClassroomObservationData(facultyId) {
       average: domain.average,
       questionScores: domain.indicators.map(indicator => ({
         text: indicator.text,
-        value: indicator.hcec
+        value: indicator.hcec,
+        distribution: indicator.distribution || null
       }))
     }))
   };
@@ -76,7 +77,8 @@ function getPeerToPeerData(facultyId) {
           typeof indicator.average === "number"
             ? indicator.average
             : 0,
-        responseCount: indicator.response_count || 0
+        responseCount: indicator.response_count || 0,
+        distribution: indicator.distribution || null
       }))
     })),
 
@@ -134,7 +136,8 @@ function getHrEvaluationData(facultyId) {
       questionScores: domain.indicators.map(indicator => ({
         id: indicator.indicator_number,
         text: indicator.text,
-        value: indicator.average
+        value: indicator.average,
+        distribution: indicator.distribution || null
       }))
     })),
 
@@ -182,7 +185,8 @@ function getStudentEvaluationData(faculty) {
     questionAverages: domain.indicators.map((indicator) => ({
       id: indicator.indicator_number,
       text: indicator.text,
-      average: indicator.average
+      average: indicator.average,
+      distribution: indicator.distribution || null
     }))
   }));
 
@@ -941,6 +945,162 @@ function buildEmptyState(label) {
   return `<p class="text-sm text-gray-400 py-6 text-center">No ${label} data available for this faculty member yet.</p>`;
 }
 
+// Sum per-question rating distributions into one totals object.
+function sumIndicatorDistributions(indicators) {
+  const totals = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+  (indicators || []).forEach((indicator) => {
+    const distribution = indicator && indicator.distribution;
+
+    if (!distribution) return;
+
+    [1, 2, 3, 4, 5].forEach((value) => {
+      totals[value] += Number(distribution[String(value)] || 0);
+    });
+  });
+
+  return totals;
+}
+
+// Horizontal rating-distribution strip (counts of each rating 1-5).
+// Pure CSS bars — no chart library needed inside printable reports.
+function buildDistributionStripHtml(distribution, title) {
+  const totals = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+  [1, 2, 3, 4, 5].forEach((value) => {
+    totals[value] = Number(
+      (distribution && distribution[String(value)]) || 0
+    );
+  });
+
+  const grandTotal = [1, 2, 3, 4, 5].reduce(
+    (sum, value) => sum + totals[value],
+    0
+  );
+
+  if (grandTotal === 0) return "";
+
+  const barColor = (value) => {
+    if (value >= 5) return "#16A34A";
+    if (value === 4) return "#65A30D";
+    if (value === 3) return "#F59E0B";
+    if (value === 2) return "#F97316";
+    return "#DC2626";
+  };
+
+  const rowsHtml = [5, 4, 3, 2, 1]
+    .map((value) => {
+      const count = totals[value];
+      const pct = Math.round((count / grandTotal) * 100);
+
+      return `
+        <div class="flex items-center gap-2 py-0.5">
+          <span class="text-xs text-gray-600 w-3 text-right">${value}</span>
+          <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div class="h-2 rounded-full" style="width:${pct}%;background-color:${barColor(value)}"></div>
+          </div>
+          <span class="text-xs text-gray-600 w-14 text-right">${count} (${pct}%)</span>
+        </div>`;
+    })
+    .join("");
+
+  return `
+    <div class="mt-3 mb-2 no-print">
+      <p class="text-sm font-semibold text-gray-800 mb-1">${title}</p>
+      ${rowsHtml}
+    </div>`;
+}
+
+function collectIndicatorDistributions(indicators) {
+  const totals = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+  (indicators || []).forEach((indicator) => {
+    const distribution = indicator ? indicator.distribution : null;
+    if (!distribution) return;
+
+    [1, 2, 3, 4, 5].forEach((value) => {
+      totals[value] += Number(distribution[String(value)] || 0);
+    });
+  });
+
+  return totals;
+}
+
+function buildStudentDistributionStripHtml(data) {
+  const indicators = (data.categoryScores || []).flatMap(
+    (part) => part.questionAverages || []
+  );
+
+  return buildDistributionStripHtml(
+    collectIndicatorDistributions(indicators),
+    "Rating Distribution — Student Evaluation"
+  );
+}
+
+function buildPeerDistributionStripHtml(data) {
+  const indicators = (data.categoryScores || []).flatMap(
+    (part) => part.questionScores || []
+  );
+
+  return buildDistributionStripHtml(
+    collectIndicatorDistributions(indicators),
+    "Rating Distribution — Peer-to-Peer Evaluation"
+  );
+}
+
+function buildHrDistributionStripHtml(data) {
+  const indicators = (data.categoryScores || []).flatMap(
+    (part) => part.questionScores || []
+  );
+
+  return buildDistributionStripHtml(
+    collectIndicatorDistributions(indicators),
+    "Rating Distribution — HR Evaluation"
+  );
+}
+
+function buildClassroomDistributionStripHtml(domainScores) {
+  const indicators = (domainScores || []).flatMap(
+    (domain) => domain.questionScores || []
+  );
+
+  return buildDistributionStripHtml(
+    collectIndicatorDistributions(indicators),
+    "Rating Distribution — Classroom Observation"
+  );
+}
+
+// Blank full-report skeleton built from the criteria instrument itself.
+// When an evaluation type has no submissions yet, tabs preview every
+// question with blank ratings instead of an empty message, so the
+// printed report keeps its full structure.
+function buildBlankCategoryScores(type) {
+  let parts = [];
+
+  try {
+    parts = getCriteria(type) || [];
+  } catch (error) {
+    parts = [];
+  }
+
+  return parts.map((part) => {
+    const questions = (part.questions || []).map((question) => ({
+      text: question.text || "",
+      average: null,
+      value: null,
+      responseCount: 0,
+      distribution: null
+    }));
+
+    return {
+      title: part.title || "",
+      average: null,
+      questionScores: questions,
+      questionAverages: questions
+    };
+  });
+}
+
 // ============================================
 // Classroom Observable Strands table (Domain > Indicator > COT/HCEC/Level)
 // ============================================
@@ -1244,12 +1404,27 @@ function buildReportTabHtml(tabType, faculty) {
   }
 
   if (tabType === "student") {
-    const data = getStudentEvaluationData(faculty);
-    if (!data) return `${buildReportDocumentHeaderHtml(faculty, "Teacher's Evaluation", true)}${buildEmptyState("student evaluation")}`;
+    let data = getStudentEvaluationData(faculty);
+
+    if (!data) {
+      data = {
+        average: null,
+        equivalent: null,
+        categoryScores: buildBlankCategoryScores("student"),
+        comments: [],
+        submissionCount: 0
+      };
+    }
+
+    if (!data || !data.categoryScores || data.categoryScores.length === 0) {
+      return `${buildReportDocumentHeaderHtml(faculty, "Teacher's Evaluation", true)}${buildEmptyState("student evaluation")}`;
+    }
+
     return `
       ${buildReportDocumentHeaderHtml(faculty, "Teacher's Evaluation", true)}
-      <p class="text-xs text-gray-400 mb-2 no-print">Based on ${data.submissionCount} student submission(s).</p>
+      <p class="text-xs text-gray-400 mb-2 no-print">Based on ${data.submissionCount || 0} student submission(s).</p>
       ${buildStudentCategoryTableHtml(data)}
+      ${buildStudentDistributionStripHtml(data)}
       ${buildStudentRatingScaleLegendHtml()}
       ${buildSentimentSummaryHtml(data)}
       ${buildVerifiedBlockHtml()}
@@ -1258,9 +1433,19 @@ function buildReportTabHtml(tabType, faculty) {
   }
 
   if (tabType === "peer") {
-    const data = getPeerToPeerData(faculty.id);
+    let data = getPeerToPeerData(faculty.id);
 
     if (!data) {
+      data = {
+        average: null,
+        equivalent: "--",
+        categoryScores: buildBlankCategoryScores("peerToPeer"),
+        comments: [],
+        submissionCount: 0
+      };
+    }
+
+    if (!data.categoryScores || data.categoryScores.length === 0) {
       return buildEmptyState("peer-to-peer evaluation");
     }
 
@@ -1272,17 +1457,26 @@ function buildReportTabHtml(tabType, faculty) {
       )}
 
       <p class="text-sm text-gray-500 mb-4">
-        Based on ${data.submissionCount} peer submission(s).
+        Based on ${data.submissionCount || 0} peer submission(s).
       </p>
 
       ${buildPeerCategoryTableHtml(data)}
+      ${buildPeerDistributionStripHtml(data)}
     `;
   }
 
   if (tabType === "hr") {
-    const data = getHrEvaluationData(faculty.id);
+    let data = getHrEvaluationData(faculty.id);
 
     if (!data) {
+      data = {
+        average: null,
+        categoryScores: buildBlankCategoryScores("hrEvaluation"),
+        comments: []
+      };
+    }
+
+    if (!data.categoryScores || data.categoryScores.length === 0) {
       return buildEmptyState("HR evaluation");
     }
 
@@ -1294,13 +1488,14 @@ function buildReportTabHtml(tabType, faculty) {
       )}
 
       ${buildHrCategoryTableHtml(data)}
+      ${buildHrDistributionStripHtml(data)}
 
       <div class="flex items-center justify-between pt-3 mt-2 border-t border-gray-300">
         <span class="font-semibold text-gray-800">
           Total Rating
         </span>
         <span class="font-bold text-brand">
-          ${data.average.toFixed(2)}
+          ${typeof data.average === "number" ? data.average.toFixed(2) : "--"}
         </span>
       </div>
     `;

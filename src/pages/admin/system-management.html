@@ -33,33 +33,10 @@
       <div class="flex-1">
 
         <div id="settings-panel-academic-year" class="settings-panel bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h2 class="font-semibold text-gray-800 mb-1">Academic Year &amp; Semester</h2>
-          <p class="text-sm text-gray-500 mb-4">This appears across the login page, evaluation forms, dashboard, and printed reports.</p>
-
-          <form id="academic-year-form" class="space-y-4 max-w-sm">
-            <div>
-              <label for="academic-year-input" class="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
-              <input type="text" id="academic-year-input" placeholder="e.g. 2025-2026"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
-            </div>
-            <div>
-              <label for="semester-input" class="block text-sm font-medium text-gray-700 mb-1">Semester</label>
-              <select id="semester-input" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
-                <option value="1st">1st Semester</option>
-                <option value="2nd">2nd Semester</option>
-                <option value="3rd">3rd Semester</option>
-              </select>
-            </div>
-            <button type="submit" class="btn-primary">Save Changes</button>
-            <p id="academic-year-saved-msg" class="hidden text-sm text-green-600">Saved! This will now appear across the system.</p>
-          </form>
-
-          <hr class="my-6 border-gray-200">
-
           <h2 class="font-semibold text-gray-800 mb-1">School Year &amp; Term</h2>
           <p class="text-sm text-gray-500 mb-4">Add or open another year or term. Each School Year/Semester is a separate period. Only one term may be
               open at a time. Ending a term makes its data historical — new submissions stop, while reports stay
-              readable through the term filter.</p>
+              readable through the term filter. Opening a term also updates the Academic Year label shown on evaluation forms and printed reports.</p>
 
           <form id="term-form" class="flex flex-col sm:flex-row gap-3 mb-4 max-w-md">
               <input type="text" id="term-year-input" placeholder="e.g. 2026-2027" required
@@ -93,6 +70,15 @@
           <p class="text-sm text-gray-500 mb-4">
             Based on the PPST/RPMS structure. Set weights at each level — the effective contribution of each evaluation type is calculated automatically.
           </p>
+
+          <div class="max-w-md mb-4">
+            <label for="weighting-term-select" class="block text-sm font-medium text-gray-700 mb-1">School Year &amp; Term</label>
+            <select id="weighting-term-select"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+              <option value="">Default weighting</option>
+            </select>
+            <p id="weighting-scope-msg" class="text-xs text-gray-400 mt-1">Editing the default weighting — applies to all terms without their own weighting.</p>
+          </div>
 
           <form id="weighting-form" class="space-y-6 max-w-md">
 
