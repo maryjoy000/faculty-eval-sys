@@ -233,6 +233,67 @@ async function loadTopRatedFaculty() {
   }
 }
 
+let recentEvaluationsCache = [];
+
+var recentEvaluationsPager = null;
+function getRecentEvaluationsPager() {
+  if (!recentEvaluationsPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      recentEvaluationsPager = TablePagination.create({ defaultPerPage: 5 });
+    } else {
+      recentEvaluationsPager = null;
+    }
+  }
+  return recentEvaluationsPager;
+}
+
+function renderRecentEvaluationsPage() {
+  const container = document.getElementById("recent-evaluations-list");
+  if (!container) return;
+
+  const paginationContainer = document.getElementById("recent-evaluations-pagination");
+  const pager = getRecentEvaluationsPager();
+
+  if (!recentEvaluationsCache.length) {
+    container.innerHTML = `<p class="text-gray-400">No evaluations yet.</p>`;
+    if (paginationContainer) paginationContainer.innerHTML = "";
+    return;
+  }
+
+  const pageItems = pager ? pager.paginate(recentEvaluationsCache) : recentEvaluationsCache;
+
+  container.innerHTML = pageItems.map((evaluation) => {
+    const date = evaluation.submitted_at
+      ? new Date(evaluation.submitted_at).toLocaleString()
+      : "Unknown date";
+
+    return `
+      <div class="py-3 border-b border-gray-100 last:border-b-0">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="font-medium text-gray-800">${evaluation.faculty_name}</p>
+            <p class="text-xs text-gray-500">
+              Submitted by: ${evaluation.student_lrn}
+            </p>
+          </div>
+          <span class="font-semibold text-gray-800">
+            ${evaluation.overall_average != null
+              ? Number(evaluation.overall_average).toFixed(2)
+              : "—"}
+          </span>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">${date}</p>
+      </div>
+    `;
+  }).join("");
+
+  if (pager) {
+    pager.render("recent-evaluations-pagination", recentEvaluationsCache.length, renderRecentEvaluationsPage);
+  } else if (paginationContainer) {
+    paginationContainer.innerHTML = "";
+  }
+}
+
 async function loadRecentEvaluations() {
   const container = document.getElementById("recent-evaluations-list");
   if (!container) return;
@@ -240,39 +301,18 @@ async function loadRecentEvaluations() {
   try {
     const evaluations = await apiGet(withTerm("/evaluations/dashboard-recent"));
 
-    if (!evaluations.length) {
-      container.innerHTML = `<p class="text-gray-400">No evaluations yet.</p>`;
-      return;
-    }
+    recentEvaluationsCache = Array.isArray(evaluations) ? evaluations : [];
 
-    container.innerHTML = evaluations.map((evaluation) => {
-      const date = evaluation.submitted_at
-        ? new Date(evaluation.submitted_at).toLocaleString()
-        : "Unknown date";
+    const pager = getRecentEvaluationsPager();
+    if (pager) pager.reset();
 
-      return `
-        <div class="py-3 border-b border-gray-100 last:border-b-0">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <p class="font-medium text-gray-800">${evaluation.faculty_name}</p>
-              <p class="text-xs text-gray-500">
-                Submitted by: ${evaluation.student_lrn}
-              </p>
-            </div>
-            <span class="font-semibold text-gray-800">
-              ${evaluation.overall_average != null
-                ? Number(evaluation.overall_average).toFixed(2)
-                : "—"}
-            </span>
-          </div>
-          <p class="text-xs text-gray-400 mt-1">${date}</p>
-        </div>
-      `;
-    }).join("");
+    renderRecentEvaluationsPage();
   } catch (error) {
     console.error("Failed to load recent evaluations:", error);
     container.innerHTML =
       `<p class="text-gray-400">Unable to load recent evaluations.</p>`;
+    const paginationContainer = document.getElementById("recent-evaluations-pagination");
+    if (paginationContainer) paginationContainer.innerHTML = "";
   }
 }
 // ============================================

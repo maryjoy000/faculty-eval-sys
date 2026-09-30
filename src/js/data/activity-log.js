@@ -11,6 +11,56 @@ async function getActivityLog() {
   }
 }
 
+let activityLogCache = [];
+
+var activityLogPager = null;
+function getActivityLogPager() {
+  if (!activityLogPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      activityLogPager = TablePagination.create({ defaultPerPage: 5 });
+    } else {
+      activityLogPager = null;
+    }
+  }
+  return activityLogPager;
+}
+
+function renderActivityLogPage() {
+  const container = document.getElementById("recent-activity-log-list");
+  if (!container) return;
+
+  const paginationContainer = document.getElementById("recent-activity-log-pagination");
+  const pager = getActivityLogPager();
+
+  if (!activityLogCache.length) {
+    container.innerHTML =
+      `<p class="text-gray-400">No recent administrative activity.</p>`;
+    if (paginationContainer) paginationContainer.innerHTML = "";
+    return;
+  }
+
+  const pageItems = pager ? pager.paginate(activityLogCache) : activityLogCache;
+
+  container.innerHTML = pageItems.map((log) => {
+    const date = log.created_at
+      ? new Date(log.created_at).toLocaleString()
+      : "Unknown date";
+
+    return `
+      <div class="py-3 border-b border-gray-100 last:border-b-0">
+        <p class="text-sm text-gray-700">${log.description}</p>
+        <p class="text-xs text-gray-400 mt-1">${date}</p>
+      </div>
+    `;
+  }).join("");
+
+  if (pager) {
+    pager.render("recent-activity-log-pagination", activityLogCache.length, renderActivityLogPage);
+  } else if (paginationContainer) {
+    paginationContainer.innerHTML = "";
+  }
+}
+
 async function loadRecentActivityLog() {
   const container = document.getElementById("recent-activity-log-list");
   if (!container) return;
@@ -18,28 +68,18 @@ async function loadRecentActivityLog() {
   try {
     const logs = await getActivityLog();
 
-    if (!logs.length) {
-      container.innerHTML =
-        `<p class="text-gray-400">No recent administrative activity.</p>`;
-      return;
-    }
+    activityLogCache = Array.isArray(logs) ? logs : [];
 
-    container.innerHTML = logs.map((log) => {
-      const date = log.created_at
-        ? new Date(log.created_at).toLocaleString()
-        : "Unknown date";
+    const pager = getActivityLogPager();
+    if (pager) pager.reset();
 
-      return `
-        <div class="py-3 border-b border-gray-100 last:border-b-0">
-          <p class="text-sm text-gray-700">${log.description}</p>
-          <p class="text-xs text-gray-400 mt-1">${date}</p>
-        </div>
-      `;
-    }).join("");
+    renderActivityLogPage();
   } catch (error) {
     console.error("Failed to load recent activity:", error);
     container.innerHTML =
       `<p class="text-gray-400">Unable to load activity log.</p>`;
+    const paginationContainer = document.getElementById("recent-activity-log-pagination");
+    if (paginationContainer) paginationContainer.innerHTML = "";
   }
 }
 
