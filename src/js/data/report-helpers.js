@@ -426,7 +426,7 @@ function buildStudentCategoryTableHtml(studentData) {
 
     const questionRows = part.questionAverages.map((q, index) => {
       const categoricalCell = index === 0
-        ? `<td rowspan="${rowCount}" class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center align-middle font-semibold text-gray-800">${part.average.toFixed(2)}</td>`
+        ? `<td rowspan="${rowCount}" class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center align-middle font-semibold text-gray-800">${typeof part.average === "number" ? part.average.toFixed(2) : "—"}</td>`
         : "";
 
       const remarksCell = index === 0
@@ -473,7 +473,7 @@ function buildStudentCategoryTableHtml(studentData) {
         ${bodyRows}
         <tr>
           <td colspan="3" class="border border-gray-400 bg-gray-100 py-1.5 px-1.5 text-sm print:text-[12px] font-bold text-gray-800 text-center">General Average</td>
-          <td class="border border-gray-400 bg-gray-100 py-1.5 px-1.5 text-sm print:text-[12px] font-bold text-brand text-center">${studentData.average.toFixed(2)}</td>
+          <td class="border border-gray-400 bg-gray-100 py-1.5 px-1.5 text-sm print:text-[12px] font-bold text-brand text-center">${typeof studentData.average === "number" ? studentData.average.toFixed(2) : "—"}</td>
           <td class="border border-gray-400 bg-gray-100 py-1.5 px-1.5 text-sm print:text-[12px] font-bold text-brand text-center">${overallRemarks}</td>
         </tr>
       </tbody>
@@ -484,7 +484,11 @@ function buildStudentCategoryTableHtml(studentData) {
 }
 
 function buildSentimentSummaryHtml(studentData) {
-  const counts = studentData.sentimentCounts;
+  const counts = (studentData && studentData.sentimentCounts) || {
+    Positive: 0,
+    Neutral: 0,
+    Negative: 0
+  };
   const total = counts.Positive + counts.Neutral + counts.Negative;
   const pct = (n) => total > 0 ? `${Math.round((n / total) * 100)}%` : "—";
 
@@ -945,23 +949,6 @@ function buildEmptyState(label) {
   return `<p class="text-sm text-gray-400 py-6 text-center">No ${label} data available for this faculty member yet.</p>`;
 }
 
-// Sum per-question rating distributions into one totals object.
-function sumIndicatorDistributions(indicators) {
-  const totals = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-
-  (indicators || []).forEach((indicator) => {
-    const distribution = indicator && indicator.distribution;
-
-    if (!distribution) return;
-
-    [1, 2, 3, 4, 5].forEach((value) => {
-      totals[value] += Number(distribution[String(value)] || 0);
-    });
-  });
-
-  return totals;
-}
-
 // Horizontal rating-distribution strip (counts of each rating 1-5).
 // Pure CSS bars — no chart library needed inside printable reports.
 function buildDistributionStripHtml(distribution, title) {
@@ -999,7 +986,7 @@ function buildDistributionStripHtml(distribution, title) {
           <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
             <div class="h-2 rounded-full" style="width:${pct}%;background-color:${barColor(value)}"></div>
           </div>
-          <span class="text-xs text-gray-600 w-14 text-right">${count} (${pct}%)</span>
+          <span class="text-xs text-gray-600 w-12 text-right">${count} (${pct}%)</span>
         </div>`;
     })
     .join("");
@@ -1134,22 +1121,24 @@ function buildClassroomDomainTableHtml(classroomData) {
     const indicatorRows = indicatorList.map((ind, index) => {
       if (!ind.isFallback) indicatorCounter++;
 
-      const hcec = ind.value !== null && ind.value !== undefined ? ind.value : domain.average;
-      const cot = hcec + 1;
-      const level = getCotLevelLabel(hcec);
+      const hasValue = ind.value !== null && ind.value !== undefined;
+      const hcec = hasValue ? ind.value : domain.average;
+      const hasHcec = hcec !== null && hcec !== undefined;
+      const cot = hasHcec ? hcec + 1 : null;
+      const level = hasHcec ? getCotLevelLabel(hcec) : "—";
       const decimals = ind.isFallback ? 2 : 0;
       const indicatorLabel = ind.isFallback ? "—" : `Indicator ${indicatorCounter}`;
 
       const categoricalCell = index === 0
-        ? `<td rowspan="${rowCount}" class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center align-middle font-semibold text-gray-800">${domain.average.toFixed(2)}</td>`
+        ? `<td rowspan="${rowCount}" class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center align-middle font-semibold text-gray-800">${typeof domain.average === "number" ? domain.average.toFixed(2) : "—"}</td>`
         : "";
 
       return `
         <tr>
           <td class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center text-gray-600 whitespace-nowrap">${indicatorLabel}</td>
           <td class="border border-gray-400 py-1 px-1.5 text-xs print:text-[10px] text-gray-700">${(ind.text || "").replace(/<br\s*\/?>/gi, " — ")}</td>
-          <td class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center text-gray-600">${cot.toFixed(decimals)}</td>
-          <td class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center text-gray-600">${hcec.toFixed(decimals)}</td>
+          <td class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center text-gray-600">${cot !== null ? cot.toFixed(decimals) : "—"}</td>
+          <td class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center text-gray-600">${hasHcec ? hcec.toFixed(decimals) : "—"}</td>
           ${categoricalCell}
           <td class="border border-gray-400 py-1 px-1 text-xs print:text-[10px] text-center text-gray-700">${level}</td>
         </tr>
@@ -1174,7 +1163,7 @@ function buildClassroomDomainTableHtml(classroomData) {
         ${bodyRows}
         <tr>
           <td colspan="4" class="border border-gray-400 bg-gray-100 py-1.5 px-1.5 text-sm print:text-[12px] font-bold text-gray-800 text-center">Classroom Observable Strands Average</td>
-          <td colspan="2" class="border border-gray-400 bg-gray-100 py-1.5 px-1.5 text-sm print:text-[12px] font-bold text-brand text-center">${classroomData.average.toFixed(2)}</td>
+          <td colspan="2" class="border border-gray-400 bg-gray-100 py-1.5 px-1.5 text-sm print:text-[12px] font-bold text-brand text-center">${typeof classroomData.average === "number" ? classroomData.average.toFixed(2) : "—"}</td>
         </tr>
       </tbody>
     </table>
@@ -1385,10 +1374,22 @@ function buildReportTabHtml(tabType, faculty) {
 
   if (tabType === "classroom") {
     const data = getClassroomObservationData(faculty.id);
+    const domainScores = data
+      ? data.domainScores
+      : buildBlankCategoryScores("classroomObservation").map((part) => ({
+          title: part.title,
+          average: null,
+          questionScores: (part.questionScores || []).map((question) => ({
+            text: question.text,
+            value: null
+          }))
+        }));
+
     return `
       ${buildReportDocumentHeaderHtml(faculty, "Classroom Observation Report")}
       ${data ? `<p class="text-xs text-gray-400 mb-2 no-print">Observed: ${data.submittedAt || "--"}</p>` : ""}
-      ${buildClassroomDomainTableHtml(data)}
+      ${buildClassroomDomainTableHtml({ domainScores })}
+      ${buildClassroomDistributionStripHtml(domainScores)}
       ${data ? `
         <table class="w-full border-collapse mb-2 text-left">
           <tbody>
