@@ -38,6 +38,7 @@ def _apply_term_filter(query, term_id):
 
 def get_faculty_evaluation_summary(faculty_id, term_id=None):
     per_type = {}
+    sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
 
     for et in EvaluationType.query.all():
         evaluations_query = (
@@ -48,6 +49,19 @@ def get_faculty_evaluation_summary(faculty_id, term_id=None):
             )
         )
         evaluations = _apply_term_filter(evaluations_query, term_id).all()
+
+        # Dominant sentiment is computed over comment-bearing types only
+        // (classroom observations carry no sentiment).
+        if et.code in ("student", "peerToPeer", "hrEvaluation"):
+            for evaluation in evaluations:
+                label = (evaluation.sentiment_label or "").strip().lower()
+
+                if label == "positive":
+                    sentiment_counts["Positive"] += 1
+                elif label == "negative":
+                    sentiment_counts["Negative"] += 1
+                elif evaluation.comments and evaluation.comments.strip():
+                    sentiment_counts["Neutral"] += 1
 
         if not evaluations:
             per_type[et.code] = {
