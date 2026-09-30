@@ -35,6 +35,7 @@ from app.models.activity_log import ActivityLog  # noqa: F401 (register model)
 from app.models.backup_code import BackupCode  # noqa: F401 (register model)
 from app.models.student import Student  # noqa: F401 (register model)
 from app.models.user import User  # noqa: F401 (register model)
+from app.models.section import Section  # noqa: F401 (register model)
 from app.routes.auth import auth_bp
 from app.routes.two_factor import two_factor_bp
 

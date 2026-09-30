@@ -34,7 +34,18 @@ class Student(db.Model, UserMixin):
     )
 
     advisory_assignment_id = db.Column(
-        db.Integer, db.ForeignKey("advisory_assignments.id"), nullable=False
+        db.Integer, db.ForeignKey("advisory_assignments.id"), nullable=True
+    )
+
+    # Enrollment Master List verification. Pre-existing free-typed rows
+    # start as 'unverified' for the admin reconciliation pass; enrollment
+    # imports mark rows 'verified'. Faculty placement requires the LRN
+    # to exist in the master list but works with either status.
+    verification_status = db.Column(
+        db.Enum("verified", "unverified", name="student_verification_status"),
+        nullable=False,
+        default="unverified",
+        server_default="unverified",
     )
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -56,7 +67,9 @@ class Student(db.Model, UserMixin):
             "name": self.name,
             "last_name": self.last_name,
             "first_name": self.first_name,
-            "middle_name": self.middle_name
+            "middle_name": self.middle_name,
+            "verification_status": self.verification_status,
+            "advisory_assignment_id": self.advisory_assignment_id,
         }
 
     def get_expected_default_password(self):

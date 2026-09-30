@@ -131,7 +131,7 @@ function buildReviewSummaryHtml(options) {
         <h4 class="font-semibold text-gray-800 mb-1 text-sm">Your Comment</h4>
         ${
           commentText
-            ? `<p class="text-sm text-gray-600 italic whitespace-pre-wrap">${reviewEscapeHtml(commentText)}</p>`
+            ? `<p class="text-sm text-gray-600 italic" style="white-space:pre-wrap">${reviewEscapeHtml(commentText)}</p>`
             : `<p class="text-sm text-gray-400 italic">No comment provided.</p>`
         }
       </div>`;
@@ -140,11 +140,11 @@ function buildReviewSummaryHtml(options) {
   return `
     <div class="bg-brand text-white rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3">
       <div>
-        <p class="text-xs opacity-80">Questions answered</p>
+        <p class="text-xs">Questions answered</p>
         <p class="font-bold">${answeredCount} of ${totalQuestions}</p>
       </div>
       <div class="text-right">
-        <p class="text-xs opacity-80">Overall Average</p>
+        <p class="text-xs">Overall Average</p>
         <p class="font-bold">${reviewEscapeHtml(overallDisplay)}</p>
       </div>
     </div>

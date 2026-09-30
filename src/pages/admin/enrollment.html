@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enrollment | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+  <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+</head>
+<body>
+
+  <div id="app-admin-shell" data-active-page="enrollment" data-scope-label="Welcome back, Admin"></div>
+
+  <template id="page-content-template">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Enrollment</h1>
+        <p class="text-sm text-gray-500 mt-1">Master list of sections and students. Faculty place students from this list — unknown LRNs are rejected.</p>
+      </div>
+    </div>
+
+    <div class="flex gap-2 mb-6">
+      <button type="button" id="enrollment-tab-sections" class="enrollment-tab-btn btn-primary text-sm">Sections</button>
+      <button type="button" id="enrollment-tab-students" class="enrollment-tab-btn btn-secondary text-sm">Students</button>
+    </div>
+
+    <!-- ============================================
+         SECTIONS PANEL
+    ============================================ -->
+    <div id="enrollment-panel-sections" class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <input
+          type="text" id="section-search-input" placeholder="Search section..."
+          class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+        <select
+          id="section-status-filter"
+          class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Active Only</option>
+          <option value="inactive">Inactive Only</option>
+        </select>
+        <button type="button" id="section-template-btn" class="btn-secondary text-sm">Template</button>
+        <button type="button" id="section-import-btn" class="btn-secondary text-sm">Import .xlsx</button>
+        <input type="file" id="section-import-input" accept=".xlsx,.xls" class="hidden">
+        <button type="button" id="add-section-btn" class="btn-primary text-sm">+ Add Section</button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-gray-300 text-gray-700">
+              <th class="py-2 pr-4 font-semibold">Grade</th>
+              <th class="py-2 pr-4 font-semibold">Section</th>
+              <th class="py-2 pr-4 font-semibold">School Year</th>
+              <th class="py-2 pr-4 font-semibold">Students</th>
+              <th class="py-2 pr-4 font-semibold">Adviser</th>
+              <th class="py-2 pr-4 font-semibold">Status</th>
+              <th class="py-2 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sections-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="sections-pagination" class="no-print"></div>
+
+    </div>
+
+    <!-- ============================================
+         STUDENTS PANEL
+    ============================================ -->
+    <div id="enrollment-panel-students" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <input
+          type="text" id="student-search-input" placeholder="Search LRN or name..."
+          class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+        <select
+          id="student-verified-filter"
+          class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+          <option value="all">All Verification</option>
+          <option value="true">Verified Only</option>
+          <option value="false">Unverified Only</option>
+        </select>
+        <select
+          id="student-assigned-filter"
+          class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+          <option value="all">Placed + Unplaced</option>
+          <option value="true">Placed Only</option>
+          <option value="false">Unplaced Only</option>
+        </select>
+        <button type="button" id="student-template-btn" class="btn-secondary text-sm">Template</button>
+        <button type="button" id="student-import-btn" class="btn-secondary text-sm">Import .xlsx</button>
+        <input type="file" id="student-import-input" accept=".xlsx,.xls" class="hidden">
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-gray-300 text-gray-700">
+              <th class="py-2 pr-4 font-semibold">LRN</th>
+              <th class="py-2 pr-4 font-semibold">Name</th>
+              <th class="py-2 pr-4 font-semibold">Section</th>
+              <th class="py-2 pr-4 font-semibold">Adviser</th>
+              <th class="py-2 pr-4 font-semibold">Verified</th>
+              <th class="py-2 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="students-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="students-pagination" class="no-print"></div>
+
+    </div>
+
+    <!-- Section add/edit modal -->
+    <div id="section-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div id="section-modal-backdrop" class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-white rounded-xl shadow-lg w-full max-w-sm mx-4 p-6">
+        <h2 id="section-modal-title" class="text-lg font-semibold text-gray-800 mb-4">Add Section</h2>
+        <form id="section-form" class="space-y-4">
+          <input type="hidden" id="section-form-id">
+          <div>
+            <label for="section-grade-input" class="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
+            <select id="section-grade-input" required
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+              <option value="11">Grade 11</option>
+              <option value="12">Grade 12</option>
+            </select>
+          </div>
+          <div>
+            <label for="section-name-input" class="block text-sm font-medium text-gray-700 mb-1">Section Name</label>
+            <input type="text" id="section-name-input" required placeholder="e.g. HUMSS A"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+          </div>
+          <div>
+            <label for="section-year-input" class="block text-sm font-medium text-gray-700 mb-1">School Year (optional)</label>
+            <input type="text" id="section-year-input" placeholder="e.g. 2026-2027"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+          </div>
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" id="section-active-input" checked class="rounded border-gray-300 text-brand focus:ring-brand">
+            Active
+          </label>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" id="cancel-section-btn" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-primary">Save Section</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Student edit/move modal -->
+    <div id="student-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div id="student-modal-backdrop" class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-white rounded-xl shadow-lg w-full max-w-sm mx-4 p-6">
+        <h2 id="student-modal-title" class="text-lg font-semibold text-gray-800 mb-4">Edit Student</h2>
+        <form id="student-form" class="space-y-4">
+          <input type="hidden" id="student-form-id">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">LRN</label>
+            <input type="text" id="student-lrn-display" disabled
+              class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-500">
+          </div>
+          <div>
+            <label for="student-last-name-input" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input type="text" id="student-last-name-input" required
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+          </div>
+          <div>
+            <label for="student-first-name-input" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <input type="text" id="student-first-name-input" required
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+          </div>
+          <div>
+            <label for="student-middle-name-input" class="block text-sm font-medium text-gray-700 mb-1">Middle Name (optional)</label>
+            <input type="text" id="student-middle-name-input"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+          </div>
+          <div>
+            <label for="student-verified-input" class="block text-sm font-medium text-gray-700 mb-1">Verification</label>
+            <select id="student-verified-input"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+              <option value="verified">Verified</option>
+              <option value="unverified">Unverified</option>
+            </select>
+          </div>
+          <div>
+            <label for="student-section-input" class="block text-sm font-medium text-gray-700 mb-1">Section Placement</label>
+            <select id="student-section-input"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            </select>
+          </div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" id="cancel-student-btn" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-primary">Save Student</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Import preview modal -->
+    <div id="import-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div id="import-modal-backdrop" class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <h2 id="import-modal-title" class="text-lg font-semibold text-gray-800 mb-1">Import Preview</h2>
+        <p id="import-modal-summary" class="text-sm text-gray-500 mb-4"></p>
+        <div id="import-modal-errors" class="hidden mb-4"></div>
+        <div class="overflow-x-auto mb-4">
+          <table class="w-full text-left text-sm">
+            <thead id="import-preview-head"></thead>
+            <tbody id="import-preview-body"></tbody>
+          </table>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button type="button" id="cancel-import-btn" class="btn-secondary">Cancel</button>
+          <button type="button" id="confirm-import-btn" class="btn-primary">Confirm Import</button>
+        </div>
+      </div>
+    </div>
+
+  </template>
+
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/utils/pagination.js"></script>
+  <script src="../../assets/js/xlsx.full.min.js"></script>
+  <script src="../../js/components/sidebar.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/pages/enrollment.js"></script>
+</body>
+</html>

@@ -44,6 +44,7 @@ function renderAdminShell() {
       icon: "users",
     },
     { id: "reports", label: "Reports", href: "reports.html", icon: "file" },
+    { id: "enrollment", label: "Enrollment", href: "enrollment.html", icon: "users" },
     { id: "system", label: "System Management", href: "system-management.html", icon: "settings" },
     { id: "criteria", label: "Evaluation Criteria", href: "evaluation-criteria.html", icon: "edit" },
   ];

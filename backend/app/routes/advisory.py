@@ -18,8 +18,51 @@ def _current_faculty_or_error():
     return faculty, None
 
 
+@advisory_bp.route("/lookup-student", methods=["GET"])
+@roles_required("faculty")
+def lookup_student():
+    """Name preview for the advisory placement form.
+
+    Faculty type an LRN and see the master-list name before assigning —
+    no free-typed names, so placement can never create ghost records.
+    """
+    lrn = (request.args.get("lrn") or "").strip()
+
+    if len(lrn) != 12 or not lrn.isdigit():
+        return jsonify({"error": "lrn must be exactly 12 digits"}), 400
+
+    student = Student.query.filter_by(lrn=lrn).first()
+
+    if not student:
+        return jsonify({
+            "error": (
+                "No enrolled student with this LRN. Ask your admin to add "
+                "them to the enrollment master list first."
+            )
+        }), 404
+
+    data = student.to_dict()
+    assignment = student.advisory_assignment
+    data["assigned_section"] = _label(assignment) if assignment else None
+
+    return jsonify(data), 200
+
+
 def _label(assignment):
     return f"{assignment.grade_level} {assignment.section_name}"
+
+
+def _link_master_section(assignment):
+    """Link an advisory to its Enrollment Master List section when one
+    matches. Keeps the denormalized grade/section strings untouched."""
+    from ..models.section import Section
+
+    section = Section.query.filter_by(
+        grade_level=assignment.grade_level,
+        section_name=assignment.section_name,
+    ).first()
+
+    assignment.section_id = section.id if section else None
 
 
 @advisory_bp.route("", methods=["GET"])
@@ -58,6 +101,19 @@ def create_advisory():
     grade_level = (data.get("grade_level") or "").strip()
     section_name = (data.get("section_name") or "").strip()
 
+    # Creating from the Enrollment Master List: the section dictates
+    # the grade/name so advisories can never drift from the master.
+    if data.get("section_id") is not None:
+        from ..models.section import Section
+
+        section = Section.query.get(data.get("section_id"))
+
+        if not section:
+            return jsonify({"error": "Section not found"}), 404
+
+        grade_level = section.grade_level
+        section_name = section.section_name
+
     if not faculty_id or not grade_level or not section_name:
         return jsonify({
             "error": "faculty_id, grade_level, and section_name are required"
@@ -77,6 +133,7 @@ def create_advisory():
         # Reuse the existing advisory assignment instead of creating a duplicate.
         if existing_assignment.faculty_id is None:
             existing_assignment.faculty_id = faculty.id
+            _link_master_section(existing_assignment)
             db.session.commit()
 
             log_activity(
@@ -101,6 +158,8 @@ def create_advisory():
     )
 
     db.session.add(assignment)
+    db.session.flush()
+    _link_master_section(assignment)
     db.session.commit()
 
     log_activity(
@@ -220,49 +279,50 @@ def add_student(assignment_id):
     data = request.get_json(silent=True) or {}
 
     lrn = (data.get("lrn") or "").strip()
-    last_name = (data.get("last_name") or "").strip()
-    first_name = (data.get("first_name") or "").strip()
-    middle_name = (data.get("middle_name") or "").strip()
 
-    if not lrn or not last_name or not first_name:
-        return jsonify({
-            "error": "lrn, last_name, and first_name are required"
-        }), 400
+    if not lrn:
+        return jsonify({"error": "lrn is required"}), 400
 
     if len(lrn) != 12 or not lrn.isdigit():
         return jsonify({
             "error": "lrn must be exactly 12 digits"
         }), 400
 
-    if Student.query.filter_by(lrn=lrn).first():
+    # Enrollment Master List validation: faculty place enrolled students,
+    # they never create records. Unknown LRNs are rejected so ghost
+    # students cannot enter the system (and its evaluations).
+    student = Student.query.filter_by(lrn=lrn).first()
+
+    if not student:
         return jsonify({
-            "error": "A student with this LRN already exists"
+            "error": (
+                "No enrolled student with this LRN. Ask your admin to add "
+                "them to the enrollment master list first."
+            )
+        }), 404
+
+    if student.advisory_assignment_id == assignment.id:
+        return jsonify(student.to_dict()), 200
+
+    if student.advisory_assignment_id is not None:
+        other = AdvisoryAssignment.query.get(student.advisory_assignment_id)
+        other_label = _label(other) if other else "another section"
+
+        return jsonify({
+            "error": (
+                f"{student.name} is already assigned to {other_label}."
+            )
         }), 409
 
-    name = (
-        f"{last_name}, {first_name} {middle_name}"
-        if middle_name
-        else f"{last_name}, {first_name}"
-    )
-
-    student = Student(
-        lrn=lrn,
-        last_name=last_name,
-        first_name=first_name,
-        middle_name=middle_name or None,
-        name=name,
-        advisory_assignment_id=assignment.id
-    )
-
-    db.session.add(student)
+    student.advisory_assignment_id = assignment.id
     db.session.commit()
 
     log_activity(
-        f"Added student {name} to {_label(assignment)}",
+        f"Placed student {student.name} ({student.lrn}) to {_label(assignment)}",
         user_id=current_user.id
     )
 
-    return jsonify(student.to_dict()), 201
+    return jsonify(student.to_dict()), 200
 
 @advisory_bp.route("/<int:assignment_id>/students/<int:student_id>", methods=["DELETE"])
 @roles_required("faculty")
@@ -280,8 +340,12 @@ def remove_student(assignment_id, student_id):
         return jsonify({"error": "Student does not belong to this section"}), 404
 
     name = student.name
-    db.session.delete(student)
+
+    # Unassign, never delete: the student stays in the Enrollment Master
+    # List (and their submitted evaluations stay intact), they simply no
+    # longer belong to this section.
+    student.advisory_assignment_id = None
     db.session.commit()
 
-    log_activity(f"Removed student {name} from {_label(assignment)}", user_id=current_user.id)
-    return jsonify({"message": "Student removed"}), 200
+    log_activity(f"Removed student {name} from {_label(assignment)} (kept in master list)", user_id=current_user.id)
+    return jsonify({"message": "Student removed from section"}), 200

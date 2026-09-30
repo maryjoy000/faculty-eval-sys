@@ -110,29 +110,10 @@ function renderAdvisoryClasses() {
       </div>
 
       <div class="flex flex-col sm:flex-row gap-2">
-        <input type="text" placeholder="LRN (12 digits)" class="new-student-lrn-input w-full sm:w-40 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" data-assignment-id="${assignment.id}">
-        <input
-          type="text"
-          placeholder="Last Name"
-          class="new-student-last-name-input flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-          data-assignment-id="${assignment.id}"
-        >
-
-        <input
-          type="text"
-          placeholder="First Name"
-          class="new-student-first-name-input flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-          data-assignment-id="${assignment.id}"
-        >
-
-        <input
-          type="text"
-          placeholder="Middle Name"
-          class="new-student-middle-name-input flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-          data-assignment-id="${assignment.id}"
-        >
-        <button type="button" class="add-student-btn btn-secondary text-sm px-4" data-assignment-id="${assignment.id}">Add Student</button>
+        <input type="text" inputmode="numeric" maxlength="12" placeholder="LRN (12 digits)" class="new-student-lrn-input w-full sm:w-40 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" data-assignment-id="${assignment.id}">
+        <button type="button" class="add-student-btn btn-secondary text-sm px-4 disabled:opacity-40 disabled:cursor-not-allowed" data-assignment-id="${assignment.id}" disabled>Add Student</button>
       </div>
+      <p class="lookup-result text-sm mt-2" data-assignment-id="${assignment.id}"><span class="text-gray-400">Type the 12-digit LRN from the enrollment master list — no need to type the name.</span></p>
     </div>
   `;
   }).join("");
@@ -178,7 +159,7 @@ function attachAdvisoryClassListeners() {
 
       showConfirmModal({
         title: "Remove Student?",
-        message: `Remove "${student.name}" (${student.lrn}) from ${sectionLabel(assignment)}?`,
+        message: `Remove "${student.name}" (${student.lrn}) from ${sectionLabel(assignment)}? They will stay in the enrollment master list.`,
         confirmLabel: "Remove",
         isDestructive: true,
         onConfirm: async () => {
@@ -189,49 +170,132 @@ function attachAdvisoryClassListeners() {
     });
   });
 
+  // Placement lookup state per section: only an LRN that resolves to an
+  // enrolled, unplaced student enables its Add button.
+  const placeableLrn = {};
+
+  function setLookupMessage(assignmentId, html) {
+    const holder = document.querySelector(
+      `.lookup-result[data-assignment-id="${assignmentId}"]`
+    );
+    if (holder) holder.innerHTML = html;
+  }
+
+  function setAddEnabled(assignmentId, enabled) {
+    const btn = document.querySelector(
+      `.add-student-btn[data-assignment-id="${assignmentId}"]`
+    );
+    if (btn) btn.disabled = !enabled;
+  }
+
+  function escapeLookupText(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  document.querySelectorAll(".new-student-lrn-input").forEach((lrnInput) => {
+    lrnInput.addEventListener("input", async () => {
+      const assignmentId = lrnInput.dataset.assignmentId;
+      const lrn = lrnInput.value.replace(/\D/g, "").slice(0, 12);
+
+      if (lrnInput.value !== lrn) lrnInput.value = lrn;
+
+      delete placeableLrn[assignmentId];
+      setAddEnabled(assignmentId, false);
+
+      if (lrn.length === 0) {
+        setLookupMessage(
+          assignmentId,
+          `<span class="text-gray-400">Type the 12-digit LRN from the enrollment master list — no need to type the name.</span>`
+        );
+        return;
+      }
+
+      if (lrn.length !== 12) return;
+
+      setLookupMessage(
+        assignmentId,
+        `<span class="text-gray-400">Looking up LRN ${escapeLookupText(lrn)}…</span>`
+      );
+
+      let found = null;
+
+      try {
+        found = await apiGet(
+          `/advisory/lookup-student?lrn=${encodeURIComponent(lrn)}`
+        );
+      } catch (error) {
+        // A newer keystroke already fired another lookup — ignore this one.
+        if (lrnInput.value !== lrn) return;
+
+        setLookupMessage(
+          assignmentId,
+          `<span class="text-red-500">${escapeLookupText(
+            (error.data && error.data.error) ||
+              "No enrolled student with this LRN."
+          )}</span>`
+        );
+        return;
+      }
+
+      if (!found) return;
+
+      // A newer keystroke already fired another lookup — ignore this one.
+      if (lrnInput.value !== lrn) return;
+
+      if (
+        found.advisory_assignment_id !== null &&
+        found.advisory_assignment_id !== undefined &&
+        String(found.advisory_assignment_id) === String(assignmentId)
+      ) {
+        setLookupMessage(
+          assignmentId,
+          `<span class="text-gray-500">${escapeLookupText(found.name)} is already in this section.</span>`
+        );
+        return;
+      }
+
+      if (found.assigned_section) {
+        setLookupMessage(
+          assignmentId,
+          `<span class="text-amber-600">${escapeLookupText(found.name)} is already assigned to ${escapeLookupText(
+            found.assigned_section
+          )}.</span>`
+        );
+        return;
+      }
+
+      placeableLrn[assignmentId] = lrn;
+      setAddEnabled(assignmentId, true);
+      setLookupMessage(
+        assignmentId,
+        `<span class="text-green-600 font-medium">${escapeLookupText(found.name)} (${escapeLookupText(found.lrn)})</span>
+         <span class="text-gray-500"> — ready to place in this section.</span>`
+      );
+    });
+  });
+
   document.querySelectorAll(".add-student-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const assignmentId = btn.dataset.assignmentId;
       const lrnInput = document.querySelector(`.new-student-lrn-input[data-assignment-id="${assignmentId}"]`);
-      const lastNameInput = document.querySelector(
-        `.new-student-last-name-input[data-assignment-id="${assignmentId}"]`
-      );
-      const firstNameInput = document.querySelector(
-        `.new-student-first-name-input[data-assignment-id="${assignmentId}"]`
-      );
-      const middleNameInput = document.querySelector(
-        `.new-student-middle-name-input[data-assignment-id="${assignmentId}"]`
-      );
+      const lrn = (lrnInput ? lrnInput.value : "").trim();
 
-      const lrn = lrnInput.value.trim();
-      const lastName = lastNameInput.value.trim();
-      const firstName = firstNameInput.value.trim();
-      const middleName = middleNameInput.value.trim();
-
-      if (!lrn || !lastName || !firstName) {
-        alert("Please enter the LRN, last name, and first name.");
+      if (!lrn || placeableLrn[assignmentId] !== lrn) {
+        alert("Look up a valid unplaced LRN from the enrollment master list first.");
         return;
       }
 
       try {
-        await apiPost(`/advisory/${assignmentId}/students`, {
-          lrn,
-          last_name: lastName,
-          first_name: firstName,
-          middle_name: middleName
-        });
+        await apiPost(`/advisory/${assignmentId}/students`, { lrn });
       } catch (err) {
-        // Server validates LRN format and system-wide duplicate LRNs --
-        // e.g. "lrn must be exactly 12 digits" or "A student with this
-        // LRN already exists".
         alert(err.data && err.data.error ? err.data.error : "Something went wrong. Please try again.");
         return;
       }
 
-      lrnInput.value = "";
-      lastNameInput.value = "";
-      firstNameInput.value = "";
-      middleNameInput.value = "";
+      delete placeableLrn[assignmentId];
       await loadAdvisoryAssignments();
     });
   });

@@ -149,23 +149,24 @@ function richToolbarHtml() {
     <div class="flex items-center gap-1 mb-1">
       <button
         type="button"
-        class="rich-format-btn w-7 h-7 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+        class="rich-format-btn w-7 h-7 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
         data-command="bold"
         title="Bold"
       >B</button>
       <button
         type="button"
-        class="rich-format-btn w-7 h-7 text-sm italic text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+        class="rich-format-btn w-7 h-7 text-sm italic text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
         data-command="italic"
         title="Italic"
       >I</button>
       <button
         type="button"
-        class="rich-format-btn w-7 h-7 text-sm underline text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+        class="rich-format-btn w-7 h-7 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
+        style="text-decoration:underline"
         data-command="underline"
         title="Underline"
       >U</button>
-      <span class="text-[11px] text-gray-400 ml-1">Enter = new line</span>
+      <span class="text-xs text-gray-400">Enter = new line</span>
     </div>`;
 }
 
@@ -429,7 +430,8 @@ function renderPartsEditor() {
                 ${richToolbarHtml()}
                 <div
                   contenteditable="true"
-                  class="rich-editor part-subtitle-input w-full min-h-[3.5rem] text-sm text-gray-600 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                  class="rich-editor part-subtitle-input w-full text-sm text-gray-600 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                  style="min-height:3.5rem"
                   data-part-index="${partIndex}"
                   title="Subtitle — use the toolbar for bold, italic, underline; Enter for a new line"
                 >${sanitizeRichText(linesToBr(titleParts.sub))}</div>
@@ -483,7 +485,8 @@ function renderPartsEditor() {
                       ${richToolbarHtml()}
                       <div
                         contenteditable="true"
-                        class="rich-editor question-text-input w-full min-h-[3.5rem] border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                        class="rich-editor question-text-input w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                        style="min-height:3.5rem"
                         data-part-index="${partIndex}"
                         data-question-index="${questionIndex}"
                         title="Question text — use the toolbar for bold, italic, underline; Enter for a new line"

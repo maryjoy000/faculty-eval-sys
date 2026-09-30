@@ -15,17 +15,22 @@ class AdvisoryAssignment(db.Model):
     faculty_id = db.Column(db.Integer, db.ForeignKey("faculty.id"), nullable=True)
     grade_level = db.Column(db.String(20), nullable=False)
     section_name = db.Column(db.String(80), nullable=False)
+    # Link to the Enrollment Master List. Nullable so legacy rows keep
+    # working; new advisories created from a master section set this.
+    section_id = db.Column(db.Integer, db.ForeignKey("sections.id"), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     faculty = db.relationship("Faculty", backref=db.backref("advisory_assignments", lazy=True))
+    section = db.relationship("Section", backref=db.backref("advisory_assignments", lazy=True))
 
     def to_dict(self):
         return {
             "id": self.id,
             "grade_level": self.grade_level,
             "section_name": self.section_name,
+            "section_id": self.section_id,
             "students": [s.to_dict() for s in self.students],
         }
 

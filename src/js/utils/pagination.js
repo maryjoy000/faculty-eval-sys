@@ -114,12 +114,13 @@ var TablePagination = (function () {
     var pageButtonsHtml = getPageWindow(current, totalPages, maxButtons)
       .map(function (item) {
         if (item === "...") {
-          return '<span class="px-2 text-sm text-gray-400 select-none">…</span>';
+          return '<span class="px-2 text-sm text-gray-400">…</span>';
         }
         var isActive = Number(item) === current;
         return (
           '<button type="button" data-page="' + escapeAttr(item) + '" ' +
-          'class="pagination-page-btn min-w-[2rem] px-2 py-1.5 rounded-lg text-sm font-medium ' +
+          'style="min-width:2rem;" ' +
+          'class="pagination-page-btn px-2 py-1.5 rounded-lg text-sm font-medium ' +
           (isActive
             ? "bg-brand text-white"
             : "bg-gray-100 text-gray-600 hover:bg-gray-200") + '"' +
