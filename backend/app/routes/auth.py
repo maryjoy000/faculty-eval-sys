@@ -59,6 +59,16 @@ def login():
 
     student = Student.query.filter_by(lrn=username).first()
     if student and student.check_password(password):
+        # Deactivated students get a distinct, explainable rejection so
+        # the login page can pop an "account inactive" notice. Wrong
+        # passwords still fall through to the generic 401 below, so this
+        # reveals nothing about accounts the caller can't already open.
+        if (student.status or "active") != "active":
+            return jsonify({
+                "error": "This account is deactivated. Please contact your administrator.",
+                "code": "account_inactive",
+            }), 403
+
         login_user(student)
         session.pop(PENDING_2FA_SESSION_KEY, None)
         start_session_version(student)

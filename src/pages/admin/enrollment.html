@@ -96,6 +96,14 @@
           <option value="true">Placed Only</option>
           <option value="false">Unplaced Only</option>
         </select>
+        <select
+          id="student-status-filter"
+          class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+          <option value="all">Active + Inactive</option>
+          <option value="active">Active Only</option>
+          <option value="inactive">Inactive Only</option>
+        </select>
         <button type="button" id="student-template-btn" class="btn-secondary text-sm">Template</button>
         <button type="button" id="student-import-btn" class="btn-secondary text-sm">Import .xlsx</button>
         <input type="file" id="student-import-input" accept=".xlsx,.xls" class="hidden">
@@ -110,6 +118,7 @@
               <th class="py-2 pr-4 font-semibold">Section</th>
               <th class="py-2 pr-4 font-semibold">Adviser</th>
               <th class="py-2 pr-4 font-semibold">Verified</th>
+              <th class="py-2 pr-4 font-semibold">Status</th>
               <th class="py-2 font-semibold">Actions</th>
             </tr>
           </thead>

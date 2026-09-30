@@ -287,6 +287,7 @@ async function loadStudents() {
       q: document.getElementById("student-search-input").value.trim(),
       verified: document.getElementById("student-verified-filter").value || "all",
       assigned: document.getElementById("student-assigned-filter").value || "all",
+      status: document.getElementById("student-status-filter").value || "all",
     });
 
     studentsCache = await apiGet(`/students?${params.toString()}`);
@@ -310,7 +311,7 @@ function renderStudentsTable() {
   if (!pageItems.length) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="py-6 text-center text-gray-400">
+        <td colspan="7" class="py-6 text-center text-gray-400">
           No students found.
         </td>
       </tr>
@@ -322,6 +323,7 @@ function renderStudentsTable() {
           student.grade_level && student.section_name
             ? `${escapeHtml(student.grade_level)} ${escapeHtml(student.section_name)}`
             : `<span class="text-gray-400">Unplaced</span>`;
+        const isActive = (student.status || "active") === "active";
 
         return `
       <tr class="border-b border-gray-200 last:border-0">
@@ -336,9 +338,17 @@ function renderStudentsTable() {
             ${student.verification_status === "verified" ? "Verified" : "Unverified"}
           </span>
         </td>
+        <td class="py-3 pr-4">
+          <span class="${isActive ? "text-green-600" : "text-gray-400"} font-medium">
+            ${isActive ? "Active" : "Inactive"}
+          </span>
+        </td>
         <td class="py-3 flex gap-3 text-sm">
           <button type="button" class="edit-student-btn text-brand hover:underline" data-student-id="${student.id}">
             Edit
+          </button>
+          <button type="button" class="toggle-student-status-btn text-amber-600 hover:underline" data-student-id="${student.id}">
+            ${isActive ? "Deactivate" : "Activate"}
           </button>
           <button type="button" class="delete-student-btn text-red-500 hover:underline" data-student-id="${student.id}">
             Delete
@@ -352,6 +362,36 @@ function renderStudentsTable() {
 
   document.querySelectorAll(".edit-student-btn").forEach((btn) => {
     btn.addEventListener("click", () => openStudentModal(btn.dataset.studentId));
+  });
+
+  document.querySelectorAll(".toggle-student-status-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const student = studentsCache.find(
+        (s) => String(s.id) === String(btn.dataset.studentId)
+      );
+      if (!student) return;
+
+      const isActive = (student.status || "active") === "active";
+
+      showConfirmModal({
+        title: isActive ? "Deactivate Student?" : "Activate Student?",
+        message: isActive
+          ? `"${student.name} (${student.lrn})" will be signed out everywhere and won't be able to log in until reactivated.`
+          : `"${student.name} (${student.lrn})" will be able to log in again.`,
+        confirmLabel: isActive ? "Deactivate" : "Activate",
+        isDestructive: isActive,
+        onConfirm: async () => {
+          try {
+            await apiPut(`/students/${student.id}`, {
+              status: isActive ? "inactive" : "active",
+            });
+            await loadStudents();
+          } catch (error) {
+            showError(error);
+          }
+        },
+      });
+    });
   });
 
   document.querySelectorAll(".delete-student-btn").forEach((btn) => {
@@ -389,7 +429,7 @@ function renderStudentsTable() {
 }
 
 function attachStudentFilterListeners() {
-  ["student-search-input", "student-verified-filter", "student-assigned-filter"].forEach(
+  ["student-search-input", "student-verified-filter", "student-assigned-filter", "student-status-filter"].forEach(
     (id) => {
       const el = document.getElementById(id);
       const eventName = el.tagName === "SELECT" ? "change" : "input";

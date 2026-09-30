@@ -347,6 +347,10 @@ def list_students():
     elif assigned == "false":
         query = query.filter(Student.advisory_assignment_id.is_(None))
 
+    status = (request.args.get("status") or "all").strip().lower()
+    if status in ("active", "inactive"):
+        query = query.filter(Student.status == status)
+
     grade = (request.args.get("grade_level") or "").strip()
     if grade:
         query = query.filter(AdvisoryAssignment.grade_level == grade)
@@ -429,10 +433,13 @@ def bulk_upsert_students():
                 name=name,
                 advisory_assignment_id=None,
                 verification_status="verified",
+                status="active",
             )
             db.session.add(student)
             created += 1
         else:
+            # Import never changes login access: status is admin-managed
+            # only, so re-imports cannot silently reactivate anyone.
             student.last_name = last_name
             student.first_name = first_name
             student.middle_name = middle_name
@@ -516,6 +523,16 @@ def update_student(student_id):
             }), 400
 
         student.verification_status = status
+
+    if "status" in data:
+        login_status = (data.get("status") or "").strip().lower()
+
+        if login_status not in ("active", "inactive"):
+            return jsonify({
+                "error": "status must be 'active' or 'inactive'"
+            }), 400
+
+        student.status = login_status
 
     if "advisory_assignment_id" in data:
         assignment_id = data.get("advisory_assignment_id")

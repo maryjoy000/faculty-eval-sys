@@ -464,3 +464,99 @@ def test_faculty_assign_and_unassign_keeps_master(enr_client):
     rows = client.get("/api/students?q=100000000040").get_json()
     assert len(rows) == 1
     assert rows[0]["advisory_assignment_id"] is None
+
+
+def _make_student(lrn="100000000060", last_name="Inactive", first_name="Ivy"):
+    student = Student(
+        lrn=lrn,
+        last_name=last_name,
+        first_name=first_name,
+        middle_name=None,
+        name=f"{last_name}, {first_name}",
+        advisory_assignment_id=None,
+        verification_status="verified",
+        status="active",
+    )
+    db.session.add(student)
+    db.session.commit()
+    return student
+
+
+def test_inactive_student_login_blocked(enr_client):
+    with enr_client.application.app_context():
+        _make_student()
+
+    ok = enr_client.post(
+        "/api/auth/login", json={"username": "100000000060", "password": "inactive"}
+    )
+    assert ok.status_code == 200
+
+    with enr_client.application.app_context():
+        student = Student.query.filter_by(lrn="100000000060").first()
+        student.status = "inactive"
+        db.session.commit()
+
+    blocked = enr_client.post(
+        "/api/auth/login", json={"username": "100000000060", "password": "inactive"}
+    )
+    assert blocked.status_code == 403
+    assert blocked.get_json()["code"] == "account_inactive"
+
+    # Wrong password stays generic (no enumeration change).
+    wrong = enr_client.post(
+        "/api/auth/login", json={"username": "100000000060", "password": "nope"}
+    )
+    assert wrong.status_code == 401
+    assert "code" not in wrong.get_json()
+
+
+def test_inactive_student_session_rejected(enr_client):
+    with enr_client.application.app_context():
+        _make_student(lrn="100000000061")
+
+    assert enr_client.post(
+        "/api/auth/login", json={"username": "100000000061", "password": "inactive"}
+    ).status_code == 200
+    assert enr_client.get("/api/auth/me").status_code == 200
+
+    with enr_client.application.app_context():
+        student = Student.query.filter_by(lrn="100000000061").first()
+        student.status = "inactive"
+        db.session.commit()
+
+    assert enr_client.get("/api/auth/me").status_code == 401
+
+
+def test_student_status_put_filter_and_bulk_preserve(admin_client):
+    admin_client.post(
+        "/api/students/bulk",
+        json={"students": [
+            {"lrn": "100000000062", "last_name": "Kwago", "first_name": "Li"},
+        ]},
+    )
+    row = admin_client.get("/api/students?q=100000000062").get_json()[0]
+    assert row["status"] == "active"
+
+    deactivated = admin_client.put(
+        f"/api/students/{row['id']}", json={"status": "inactive"}
+    )
+    assert deactivated.status_code == 200
+    assert deactivated.get_json()["status"] == "inactive"
+
+    bad = admin_client.put(
+        f"/api/students/{row['id']}", json={"status": "bogus"}
+    )
+    assert bad.status_code == 400
+
+    assert len(admin_client.get("/api/students?status=inactive").get_json()) == 1
+    assert admin_client.get("/api/students?status=active&q=100000000062").get_json() == []
+
+    # Re-import must not silently reactivate.
+    admin_client.post(
+        "/api/students/bulk",
+        json={"students": [
+            {"lrn": "100000000062", "last_name": "Kwago", "first_name": "Li"},
+        ]},
+    )
+    kept = admin_client.get("/api/students?q=100000000062").get_json()[0]
+    assert kept["status"] == "inactive"

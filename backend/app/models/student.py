@@ -27,6 +27,15 @@ class Student(db.Model, UserMixin):
     password_hash = db.Column(db.String(255), nullable=True)
     email = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(20), nullable=True)
+
+    # Login gate, mirroring staff accounts: 'active' students log in
+    # normally, 'inactive' students are rejected at login (and their live
+    # sessions stop validating). Defaults to active so existing rows
+    # keep working.
+    status = db.Column(
+        db.String(20), nullable=False, default="active",
+        server_default="active",
+    )
     # Bumped by "Log out of all other devices"; sessions that still hold
     # the previous value are rejected by the login manager.
     session_version = db.Column(
@@ -68,6 +77,7 @@ class Student(db.Model, UserMixin):
             "last_name": self.last_name,
             "first_name": self.first_name,
             "middle_name": self.middle_name,
+            "status": self.status,
             "verification_status": self.verification_status,
             "advisory_assignment_id": self.advisory_assignment_id,
         }

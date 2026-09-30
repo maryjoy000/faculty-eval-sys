@@ -36,6 +36,10 @@ def load_user_for_session(composite_id):
     if identity is None:
         return None
 
+    # Deactivated students are signed out everywhere, immediately.
+    if kind == "student" and (getattr(identity, "status", "active") or "active") != "active":
+        return None
+
     stored_version = session.get(SESSION_VERSION_KEY)
     current_version = getattr(identity, "session_version", 1) or 1
     if stored_version != current_version:

@@ -175,6 +175,19 @@
 
       </div>
     </div>
+
+    <!-- Inactive account notice (hidden by default) -->
+    <div id="inactive-account-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+      <div id="inactive-account-backdrop" class="absolute inset-0 bg-black/40"></div>
+      <div class="relative bg-white rounded-xl shadow-lg w-full max-w-sm mx-4 p-6 text-center">
+        <div class="mx-auto mb-3 w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center">
+          <span class="text-amber-600 text-xl font-bold">!</span>
+        </div>
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Account Deactivated</h2>
+        <p id="inactive-account-message" class="text-sm text-gray-500 mb-6">This account is deactivated. Please contact your administrator.</p>
+        <button type="button" id="close-inactive-account-btn" class="btn-primary w-full">Understood</button>
+      </div>
+    </div>
   </main>
   <script src="js/data/activity-log.js"></script>
   <script src="js/data/advisory-data.js"></script>

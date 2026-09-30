@@ -48,6 +48,15 @@ async function authenticateAndRedirect(username, password) {
   try {
     result = await apiPost("/auth/login", { username, password });
   } catch (err) {
+    // A deactivated account gets its own popup (the backend only sends
+    // this code after a correct password, so nothing is revealed).
+    if (err.data && err.data.code === "account_inactive") {
+      showInactiveAccountModal(
+        err.data.error || "This account is deactivated. Please contact your administrator."
+      );
+      return;
+    }
+
     // The backend deliberately returns one generic message for both a
     // wrong username and a wrong password (avoids confirming which
     // accounts exist) — so we no longer distinguish "Incorrect Username"
@@ -229,6 +238,32 @@ if (loginForm) {
     authenticateAndRedirect(usernameInput.value.trim(), passwordInput.value);
   });
 
+}
+
+// ============================================
+// Inactive account notice
+// ============================================
+function showInactiveAccountModal(message) {
+  const modal = document.getElementById("inactive-account-modal");
+  if (!modal) return;
+
+  document.getElementById("inactive-account-message").textContent = message;
+  modal.classList.remove("hidden");
+}
+
+function hideInactiveAccountModal() {
+  const modal = document.getElementById("inactive-account-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+const inactiveBackdrop = document.getElementById("inactive-account-backdrop");
+if (inactiveBackdrop) {
+  inactiveBackdrop.addEventListener("click", hideInactiveAccountModal);
+}
+
+const inactiveCloseBtn = document.getElementById("close-inactive-account-btn");
+if (inactiveCloseBtn) {
+  inactiveCloseBtn.addEventListener("click", hideInactiveAccountModal);
 }
 
 // ============================================
