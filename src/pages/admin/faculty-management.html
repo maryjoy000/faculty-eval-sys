@@ -37,7 +37,7 @@
         <!-- Search + filter controls -->
         <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <input
-            type="text" id="search-input" placeholder="Search name or subject..."
+            type="text" id="search-input" placeholder="Search faculty name..."
             class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         >
         <select
@@ -56,7 +56,6 @@
         <thead>
         <tr class="border-b border-gray-300 text-gray-700">
             <th class="py-2 pr-4 font-semibold">Faculty Name</th>
-            <th class="py-2 pr-4 font-semibold">Current Subject</th>
             <th class="py-2 pr-4 font-semibold">Section</th>
             <th class="py-2 pr-4 font-semibold">Advisory</th>
             <th class="py-2 pr-4 font-semibold">Status</th>
@@ -133,21 +132,6 @@
                     >
                 </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Subjects</label>
-                <div id="subject-inputs-container" class="space-y-2">
-                    <div class="flex gap-2">
-                    <input
-                        type="text" class="subject-input flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                        placeholder="e.g. Programming"
-                    >
-                    </div>
-                </div>
-                <button type="button" id="add-subject-field-btn" class="text-sm text-brand font-medium mt-2 hover:underline">
-                    + Add another subject
-                </button>
-            </div>
-
             <div class="flex justify-end gap-3 pt-2">
                 <button type="button" id="cancel-add-faculty" class="btn-secondary">Cancel</button>
                 <button type="submit" class="btn-primary">Add Faculty</button>
@@ -163,18 +147,6 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-1">Edit Details</h2>
             <p id="edit-details-faculty-name" class="text-sm text-gray-500 mb-4"></p>
 
-            <div class="mb-5">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Subjects</label>
-            <div id="edit-subjects-list-container" class="space-y-2 mb-2"></div>
-            <div class="flex gap-2">
-                <input
-                type="text" id="new-subject-input" placeholder="e.g. Programming"
-                class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                >
-                <button type="button" id="add-subject-btn" class="btn-secondary text-sm px-3">Add</button>
-            </div>
-            </div>
-
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                     Sections
@@ -182,31 +154,14 @@
 
                 <div id="section-list" class="space-y-2 mb-3"></div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="flex gap-2">
                     <select
-                    id="section-grade-level"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                    id="section-master-select"
+                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                     >
-                    <option value="">Grade Level</option>
-                    <option value="11">Grade 11</option>
-                    <option value="12">Grade 12</option>
+                    <option value="">Select section from master list</option>
                     </select>
 
-                    <input
-                        type="text"
-                        id="section-type"
-                        placeholder="e.g. HUMSS"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                    >
-                </div>
-
-                <div class="flex gap-2 mt-2">
-                    <input
-                        type="text"
-                        id="section-name"
-                        placeholder="e.g. A"
-                        class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                    >
                     <button
                     type="button"
                     id="add-section-btn"
@@ -217,7 +172,7 @@
                 </div>
 
                 <p class="text-xs text-gray-400 mt-1.5">
-                    Section names are saved as a combined value such as "HUMSS A".
+                    Sections come from the Enrollment master list.
                 </p>
                 </div>
 

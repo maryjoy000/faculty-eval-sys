@@ -71,9 +71,9 @@ function renderAdminShell() {
     `;
   }).join("");
 
-  // Dashboard has its own in-page term filter (upper-right of Dashboard Overview),
+  // Dashboard and Analytics have their own in-page term filter,
   // so skip the header one there to avoid duplicate IDs. Other pages keep it.
-  const termFilterHtml = activePage === "dashboard" ? "" : `
+  const termFilterHtml = ["dashboard", "analytics"].includes(activePage) ? "" : `
             <select
               id="global-term-filter"
               title="School year / term filter"

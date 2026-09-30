@@ -46,10 +46,6 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-function getFacultySubjects(faculty) {
-  return Array.isArray(faculty?.subjects) ? faculty.subjects : [];
-}
-
 function getFacultySections(faculty) {
   return Array.isArray(faculty?.sections) ? faculty.sections : [];
 }
@@ -76,16 +72,6 @@ function sectionDisplay(section) {
   }
 
   return section.section_name || section.name || "";
-}
-
-function subjectDisplay(subject) {
-  if (!subject) return "";
-
-  if (typeof subject === "string") {
-    return subject;
-  }
-
-  return subject.name || subject.subject_name || subject.code || "";
 }
 
 function advisoryDisplay(advisory) {
@@ -132,11 +118,6 @@ function renderHrFacultyTable() {
   const filtered = facultyRosterCache.filter((faculty) => {
     const name = String(faculty.name || "").toLowerCase();
 
-    const subjects = getFacultySubjects(faculty)
-      .map(subjectDisplay)
-      .join(" ")
-      .toLowerCase();
-
     const sections = getFacultySections(faculty)
       .map(sectionDisplay)
       .join(" ")
@@ -145,7 +126,6 @@ function renderHrFacultyTable() {
     const matchesSearch =
       !searchTerm ||
       name.includes(searchTerm) ||
-      subjects.includes(searchTerm) ||
       sections.includes(searchTerm);
 
     const status = faculty.status || "Active";
@@ -161,7 +141,7 @@ function renderHrFacultyTable() {
   if (!filtered.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+        <td colspan="5" class="px-6 py-8 text-center text-gray-500">
           No faculty records found.
         </td>
       </tr>
@@ -181,10 +161,6 @@ function renderHrFacultyTable() {
 
   tbody.innerHTML = pageItems
     .map((faculty) => {
-      const subjects = getFacultySubjects(faculty)
-        .map(subjectDisplay)
-        .filter(Boolean);
-
       const sections = getFacultySections(faculty)
         .map(sectionDisplay)
         .filter(Boolean);
@@ -202,10 +178,6 @@ function renderHrFacultyTable() {
           <div class="font-medium text-gray-800">
             ${escapeHtml(faculty.name || "")}
           </div>
-        </td>
-
-        <td class="px-6 py-4 text-sm text-gray-600">
-          ${subjects.length ? subjects.map(escapeHtml).join("<br>") : "—"}
         </td>
 
         <td class="px-6 py-4 text-sm text-gray-600">
@@ -309,9 +281,9 @@ function openEditDetails(facultyId) {
     name.textContent = faculty.name || "";
   }
 
-  renderSubjectsEditor(faculty);
   renderSectionsEditor(faculty);
   renderAdvisoryEditor(faculty);
+  loadMasterSectionOptions();
 
   document.getElementById("edit-details-modal")?.classList.remove("hidden");
 }
@@ -323,85 +295,39 @@ function closeEditDetails() {
 }
 
 // ============================================
-// SUBJECTS
+// MASTER SECTIONS DROPDOWN (Enrollment master list)
 // ============================================
 
-function renderSubjectsEditor(faculty) {
-  const container = document.getElementById("edit-subjects-list-container");
+let masterSectionsCache = [];
 
-  if (!container) return;
+async function loadMasterSectionOptions() {
+  const select = document.getElementById("section-master-select");
+  if (!select) return;
 
-  const subjects = getFacultySubjects(faculty);
-
-  container.innerHTML = subjects.length
-    ? subjects
-        .map(
-          (subject, index) => `
-        <div class="flex items-center justify-between gap-3 border border-gray-200 rounded-lg px-3 py-2">
-
-          <span class="text-sm text-gray-700">
-            ${escapeHtml(subjectDisplay(subject))}
-          </span>
-
-          <button
-            type="button"
-            class="remove-subject-btn text-xs text-red-500 hover:text-red-700"
-            data-index="${index}">
-            Remove
-          </button>
-
-        </div>
-      `,
-        )
-        .join("")
-    : `
-      <p class="text-sm text-gray-500">
-        No subjects assigned.
-      </p>
-    `;
-
-  container.querySelectorAll(".remove-subject-btn").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const faculty = facultyById(currentlyEditingFacultyId);
-
-      if (!faculty) return;
-
-      const subjects = [...getFacultySubjects(faculty)];
-
-      subjects.splice(Number(button.dataset.index), 1);
-
-      await saveFacultyDetails({
-        subjects,
-      });
-    });
-  });
-}
-
-async function addSubject() {
-  const input = document.getElementById("new-subject-input");
-
-  if (!input) return;
-
-  const value = input.value.trim();
-
-  if (!value) return;
+  try {
+    masterSectionsCache = await apiGet("/sections?status=active");
+  } catch (error) {
+    console.error("Failed to load master sections:", error);
+    masterSectionsCache = [];
+  }
 
   const faculty = facultyById(currentlyEditingFacultyId);
+  const current = new Set(
+    getFacultySections(faculty || {})
+      .map((s) => `${s.grade_level} ${s.section_name || s.name}`)
+  );
 
-  if (!faculty) return;
-
-  const subjects = [...getFacultySubjects(faculty)];
-
-  subjects.push({
-    code: "",
-    name: value,
-  });
-
-  await saveFacultyDetails({
-    subjects,
-  });
-
-  input.value = "";
+  select.innerHTML =
+    `<option value="">Select section from master list</option>` +
+    masterSectionsCache
+      .filter(
+        (s) => !current.has(`${s.grade_level} ${s.section_name}`)
+      )
+      .map(
+        (s) =>
+          `<option value="${s.id}">${escapeHtml(s.grade_level)} ${escapeHtml(s.section_name)}</option>`
+      )
+      .join("");
 }
 
 // ============================================
@@ -463,32 +389,31 @@ function renderSectionsEditor(faculty) {
 }
 
 async function addSection() {
-  const gradeLevel = document.getElementById("section-grade-level")?.value;
+  const select = document.getElementById("section-master-select");
 
-  const sectionType = document.getElementById("section-type")?.value.trim();
-
-  const sectionName = document.getElementById("section-name")?.value.trim();
-
-  if (!gradeLevel || !sectionType || !sectionName) {
-    alert("Please complete the section information.");
+  if (!select || !select.value) {
     return;
   }
+
+  const section = masterSectionsCache.find(
+    (item) => String(item.id) === String(select.value)
+  );
+
+  if (!section) return;
 
   const faculty = facultyById(currentlyEditingFacultyId);
 
   if (!faculty) return;
 
-  const fullSectionName = `${sectionType} ${sectionName}`.trim();
-
-  const sections = [...getFacultySections(faculty)].map((section) => ({
-    grade_level: section.grade_level,
-    section_name: section.name || section.section_name,
+  const sections = [...getFacultySections(faculty)].map((item) => ({
+    grade_level: item.grade_level,
+    section_name: item.name || item.section_name,
   }));
 
   const exists = sections.some(
-    (section) =>
-      `${section.grade_level} ${section.section_name}`.toLowerCase() ===
-      `${gradeLevel} ${fullSectionName}`.toLowerCase(),
+    (item) =>
+      `${item.grade_level} ${item.section_name}`.toLowerCase() ===
+      `${section.grade_level} ${section.section_name}`.toLowerCase(),
   );
 
   if (exists) {
@@ -497,16 +422,15 @@ async function addSection() {
   }
 
   sections.push({
-    grade_level: gradeLevel,
-    section_name: fullSectionName,
+    grade_level: section.grade_level,
+    section_name: section.section_name,
   });
 
   await saveFacultyDetails({
     sections,
   });
 
-  document.getElementById("section-type").value = "";
-  document.getElementById("section-name").value = "";
+  select.value = "";
 }
 
 // ============================================
@@ -691,9 +615,9 @@ async function saveFacultyDetails(changes) {
     const faculty = facultyById(currentlyEditingFacultyId);
 
     if (faculty) {
-      renderSubjectsEditor(faculty);
       renderSectionsEditor(faculty);
       renderAdvisoryEditor(faculty);
+      loadMasterSectionOptions();
     }
   } catch (error) {
     console.error("Failed to save faculty details:", error);
@@ -707,10 +631,6 @@ async function saveFacultyDetails(changes) {
 // ============================================
 
 function bindPageEvents() {
-  document
-    .getElementById("add-subject-btn")
-    ?.addEventListener("click", addSubject);
-
   document
     .getElementById("add-section-btn")
     ?.addEventListener("click", addSection);
@@ -798,10 +718,6 @@ function exportFaculty() {
   const rows = facultyRosterCache.map((faculty) => ({
     "Faculty Name": faculty.name || "",
 
-    "Current Subject": getFacultySubjects(faculty)
-      .map(subjectDisplay)
-      .join(", "),
-
     Section: getFacultySections(faculty).map(sectionDisplay).join(", "),
 
     Advisory: getFacultyAdvisories(faculty.id).map(advisoryDisplay).join(", "),
@@ -819,7 +735,6 @@ function exportFaculty() {
 
     worksheet["!cols"] = [
       { wch: 28 },
-      { wch: 32 },
       { wch: 20 },
       { wch: 20 },
       { wch: 12 }
@@ -883,7 +798,7 @@ async function initializeHrFacultyManagement() {
       tbody.innerHTML = `
         <tr>
           <td
-            colspan="6"
+            colspan="5"
             class="px-6 py-8 text-center text-red-500">
             Failed to load faculty records.
           </td>

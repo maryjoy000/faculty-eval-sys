@@ -28,7 +28,16 @@
           Current semester qualitative feedback from student and peer evaluations.
         </p>
       </div>
-      <button type="button" id="analytics-export-btn" class="btn-secondary text-sm shrink-0">Export Excel</button>
+      <div class="flex items-center gap-2 shrink-0">
+        <select
+          id="global-term-filter"
+          title="School year / term filter"
+          class="hidden border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+          <option value="all">All history</option>
+        </select>
+        <button type="button" id="analytics-export-btn" class="btn-secondary text-sm shrink-0">Export</button>
+      </div>
     </div>
 
 
