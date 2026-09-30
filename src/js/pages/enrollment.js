@@ -23,12 +23,12 @@ function escapeHtml(value) {
 
 function showError(error) {
   console.error(error);
-  alert((error && error.message) || "Something went wrong.");
+  showToast((error && error.message) || "Something went wrong.", "error");
 }
 
 function checkXlsx() {
   if (typeof XLSX === "undefined" || !XLSX.utils) {
-    alert("Spreadsheet library failed to load. Please refresh the page and try again.");
+    showToast("Spreadsheet library failed to load. Please refresh the page and try again.", "error");
     return false;
   }
   return true;
@@ -158,6 +158,7 @@ function renderSectionsTable() {
             const pg = getSectionsPager();
             if (pg) pg.reset();
             await loadSections();
+            showToast("Section deleted.", "success");
           } catch (error) {
             showError(error);
           }
@@ -235,7 +236,7 @@ function attachSectionModalListeners() {
     };
 
     if (!payload.section_name) {
-      alert("Section name is required.");
+      showToast("Section name is required.", "warning");
       return;
     }
 
@@ -248,6 +249,7 @@ function attachSectionModalListeners() {
 
       closeSectionModal();
       await loadSections();
+      showToast(id ? "Section updated." : "Section added.", "success");
     } catch (error) {
       showError(error);
     }
@@ -386,6 +388,7 @@ function renderStudentsTable() {
               status: isActive ? "inactive" : "active",
             });
             await loadStudents();
+            showToast(isActive ? "Student deactivated." : "Student activated.", "success");
           } catch (error) {
             showError(error);
           }
@@ -412,6 +415,7 @@ function renderStudentsTable() {
             const pg = getStudentsPager();
             if (pg) pg.reset();
             await loadStudents();
+            showToast("Student deleted.", "success");
           } catch (error) {
             showError(error);
           }
@@ -499,6 +503,7 @@ function attachStudentModalListeners() {
 
       closeStudentModal();
       await loadStudents();
+      showToast("Student saved.", "success");
     } catch (error) {
       showError(error);
     }
@@ -701,7 +706,7 @@ function handleImportFile(file, kind) {
       });
 
       if (!validRows.length && !errorRows.length) {
-        alert("The spreadsheet appears to be empty.");
+        showToast("The spreadsheet appears to be empty.", "warning");
         return;
       }
 
@@ -712,7 +717,7 @@ function handleImportFile(file, kind) {
   };
 
   reader.onerror = () => {
-    alert("Could not read the selected file.");
+    showToast("Could not read the selected file.", "error");
   };
 
   reader.readAsArrayBuffer(file);

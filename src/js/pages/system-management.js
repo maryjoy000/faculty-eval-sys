@@ -11,21 +11,9 @@ function mountPageContent() {
   }
 }
 
-function showSavedMessage(id) {
-  const message = document.getElementById(id);
-
-  if (!message) return;
-
-  message.classList.remove("hidden");
-
-  setTimeout(() => {
-    message.classList.add("hidden");
-  }, 3000);
-}
-
 function showError(error) {
   console.error(error);
-  alert(error.message || "Something went wrong.");
+  showToast(error.message || "Something went wrong.", "error");
 }
 
 // ============================================
@@ -89,7 +77,7 @@ function attachAcademicYearFormListener() {
         const semester = document.getElementById("semester-input").value;
 
         if (!academicYear) {
-          alert("Academic Year is required.");
+          showToast("Academic Year is required.", "warning");
           return;
         }
 
@@ -98,7 +86,7 @@ function attachAcademicYearFormListener() {
           semester,
         });
 
-        showSavedMessage("academic-year-saved-msg");
+        showToast("Academic year saved.", "success");
       } catch (error) {
         showError(error);
       }
@@ -138,18 +126,19 @@ function attachEvaluationPeriodFormListener() {
         document.getElementById("period-end-date").value;
 
       if (!evaluationType) {
-        alert("Please select an evaluation type.");
+        showToast("Please select an evaluation type.", "warning");
         return;
       }
 
       if (!startDate || !endDate) {
-        alert("Both the opening and closing dates are required.");
+        showToast("Both the opening and closing dates are required.", "warning");
         return;
       }
 
       if (startDate > endDate) {
-        alert(
-          "The 'Opens On' date must be before the 'Closes On' date."
+        showToast(
+          "The 'Opens On' date must be before the 'Closes On' date.",
+          "warning"
         );
         return;
       }
@@ -161,7 +150,7 @@ function attachEvaluationPeriodFormListener() {
           endDate
         });
 
-        showSavedMessage("evaluation-period-saved-msg");
+        showToast("Evaluation period saved.", "success");
 
       } catch (error) {
         showError(error);
@@ -199,7 +188,7 @@ function attachAnnouncementFormListener() {
             .checked,
         });
 
-        showSavedMessage("announcement-saved-msg");
+        showToast("Announcement saved.", "success");
       } catch (error) {
         showError(error);
       }
@@ -342,26 +331,42 @@ function attachAccountRowListeners() {
   });
 
   document.querySelectorAll(".toggle-account-status-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", () => {
       const account = accountsCache.find(
         (a) => String(a.id) === btn.dataset.accountId,
       );
 
       if (!account) return;
 
-      try {
-        const updated = await apiPut(`/accounts/${account.id}`, {
-          status: account.status === "active" ? "inactive" : "active",
-        });
+      const deactivating = account.status === "active";
 
-        accountsCache = accountsCache.map((a) =>
-          a.id === updated.id ? updated : a,
-        );
+      showConfirmModal({
+        title: deactivating ? "Deactivate Account?" : "Activate Account?",
+        message: deactivating
+          ? `"${account.name} (${account.username})" won't be able to log in until reactivated.`
+          : `"${account.name} (${account.username})" will be able to log in again.`,
+        confirmLabel: deactivating ? "Deactivate" : "Activate",
+        isDestructive: deactivating,
+        onConfirm: async () => {
+          try {
+            const updated = await apiPut(`/accounts/${account.id}`, {
+              status: deactivating ? "inactive" : "active",
+            });
 
-        renderAccountsTable();
-      } catch (error) {
-        showError(error);
-      }
+            accountsCache = accountsCache.map((a) =>
+              a.id === updated.id ? updated : a,
+            );
+
+            renderAccountsTable();
+            showToast(
+              deactivating ? "Account deactivated." : "Account activated.",
+              "success"
+            );
+          } catch (error) {
+            showError(error);
+          }
+        },
+      });
     });
   });
 }
@@ -458,12 +463,12 @@ function attachAccountModalListeners() {
       };
 
       if (!formData.name || !formData.username) {
-        alert("Name and username are required.");
+        showToast("Name and username are required.", "warning");
         return;
       }
 
       if (!editingId && !formData.password) {
-        alert("Password is required for a new account.");
+        showToast("Password is required for a new account.", "warning");
         return;
       }
 
@@ -501,6 +506,7 @@ function attachAccountModalListeners() {
 
         closeAccountModal();
         renderAccountsTable();
+        showToast(editingId ? "Account updated." : "Account created.", "success");
       } catch (error) {
         showError(error);
       }
@@ -638,19 +644,20 @@ function attachWeightingFormListener() {
         Number(document.getElementById("weight-student-input").value) || 0;
 
       if (domain6Share + domain7Share !== 100) {
-        alert("Domain 6 and Domain 7 shares must total exactly 100%.");
+        showToast("Domain 6 and Domain 7 shares must total exactly 100%.", "warning");
         return;
       }
 
       if (peerShareOfDomain6 + studentShareOfDomain6 !== 100) {
-        alert(
+        showToast(
           "Peer-to-Peer and Student shares within Domain 6 must total exactly 100%.",
+          "warning"
         );
         return;
       }
 
       if (classroomObservation < 0 || classroomObservation > 100) {
-        alert("Classroom Observation must be between 0% and 100%.");
+        showToast("Classroom Observation must be between 0% and 100%.", "warning");
         return;
       }
 
@@ -663,7 +670,7 @@ function attachWeightingFormListener() {
           studentShareOfDomain6,
         });
 
-        showSavedMessage("weighting-saved-msg");
+        showToast("Weighting saved.", "success");
       } catch (error) {
         showError(error);
       }

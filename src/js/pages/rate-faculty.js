@@ -10,6 +10,10 @@ let currentPartIndex = 0;
 // { q1: "4", q2: "5", q3: "4", ... }
 const answers = {};
 
+// Parts the user chose to skip for now (indexes). Skipped parts stay
+// unanswered and must still be completed before continuing to comments.
+const skippedParts = new Set();
+
 // --- Draft (save progress & continue later) ---
 let draftOwner = null;
 let draftFacultyId = null;
@@ -62,10 +66,11 @@ async function loadStudentCriteria() {
       throw new Error("No student evaluation criteria found.");
     }
 
+    skippedParts.clear();
+
     // Restore previously saved answers: in-tab session answers win,
     // otherwise continue the autosaved draft (e.g. tab was closed).
     await initStudentDraftContext();
-
     const storedAnswers = sessionStorage.getItem("evaluationAnswers");
 
     if (draftFacultyId && draftOwner) {
@@ -242,6 +247,7 @@ function renderPart(partIndex) {
           );
 
           persistStudentDraft();
+          updateSkipHint();
 
           const warning =
             document.getElementById(
@@ -256,6 +262,26 @@ function renderPart(partIndex) {
   });
 
   updateNavButtons(partIndex);
+  updateSkipHint();
+}
+
+// --- Skip progress hint ("Part 2 of 5 · 1 skipped") ---
+function updateSkipHint() {
+  const hint = document.getElementById("skip-progress-hint");
+  if (!hint || !ratingParts.length) {
+    if (hint) hint.textContent = "";
+    return;
+  }
+
+  [...skippedParts].forEach((index) => {
+    if (isPartComplete(index)) skippedParts.delete(index);
+  });
+
+  const skippedCount = skippedParts.size;
+
+  hint.textContent =
+    `Part ${currentPartIndex + 1} of ${ratingParts.length}` +
+    (skippedCount > 0 ? ` · ${skippedCount} skipped` : "");
 }
 
 // --- Update navigation buttons ---
@@ -314,6 +340,21 @@ function goNext() {
     currentPartIndex++;
     renderPart(currentPartIndex);
   } else {
+    // Last part reached with Next (so it is complete). Other parts may
+    // still be skipped — send the user back to finish those first.
+    const firstIncomplete = ratingParts.findIndex(
+      (_, index) => !isPartComplete(index)
+    );
+
+    if (firstIncomplete !== -1) {
+      currentPartIndex = firstIncomplete;
+      renderPart(currentPartIndex);
+      showIncompleteWarning(
+        "Some parts were skipped — please complete them before continuing."
+      );
+      return;
+    }
+
     sessionStorage.setItem(
       "evaluationAnswers",
       JSON.stringify(answers)
@@ -325,8 +366,49 @@ function goNext() {
   }
 }
 
+// --- Skip the current part and return to it later ---
+function goSkip() {
+  if (!ratingParts.length) return;
+
+  skippedParts.add(currentPartIndex);
+
+  let target = -1;
+
+  for (let i = 0; i < ratingParts.length; i++) {
+    if (i !== currentPartIndex && !isPartComplete(i)) {
+      target = i;
+      break;
+    }
+  }
+
+  if (target === -1) {
+    skippedParts.delete(currentPartIndex);
+
+    if (isPartComplete(currentPartIndex)) {
+      // Everything is answered — proceed like Next.
+      sessionStorage.setItem(
+        "evaluationAnswers",
+        JSON.stringify(answers)
+      );
+
+      persistStudentDraft();
+
+      window.location.href = "comments.html";
+    } else {
+      showIncompleteWarning();
+    }
+
+    updateSkipHint();
+    return;
+  }
+
+  currentPartIndex = target;
+  renderPart(currentPartIndex);
+  updateSkipHint();
+}
+
 // --- Show incomplete warning ---
-function showIncompleteWarning() {
+function showIncompleteWarning(customMessage) {
   let warning =
     document.getElementById(
       "incomplete-warning"
@@ -341,6 +423,7 @@ function showIncompleteWarning() {
       "text-sm text-red-600 mt-3 text-right";
 
     warning.textContent =
+      customMessage ||
       "Please answer all questions in this section before proceeding.";
 
     document
@@ -349,6 +432,8 @@ function showIncompleteWarning() {
         "beforebegin",
         warning
       );
+  } else if (customMessage) {
+    warning.textContent = customMessage;
   }
 }
 
@@ -419,6 +504,16 @@ if (nextBtn) {
   nextBtn.addEventListener(
     "click",
     goNext
+  );
+}
+
+const skipBtn =
+  document.getElementById("skip-btn");
+
+if (skipBtn) {
+  skipBtn.addEventListener(
+    "click",
+    goSkip
   );
 }
 
