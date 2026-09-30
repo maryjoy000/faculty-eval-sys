@@ -30,7 +30,7 @@
 
       <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <input
-          type="text" id="evaluation-search-input" placeholder="Search name or subject..."
+          type="text" id="evaluation-search-input" placeholder="Search faculty name..."
           class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         >
         <select
@@ -38,8 +38,8 @@
           class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
         >
           <option value="all">All Statuses</option>
-          <option value="observed">Observed Only</option>
-          <option value="not-observed">Not Yet Observed</option>
+          <option value="observed">Evaluated Only</option>
+          <option value="not-observed">Not Yet Evaluated</option>
         </select>
       </div>
 
@@ -48,7 +48,6 @@
           <thead>
             <tr class="border-b border-gray-300 text-gray-700">
               <th class="py-2 pr-4 font-semibold">Faculty Name</th>
-              <th class="py-2 pr-4 font-semibold">Subjects</th>
               <th class="py-2 pr-4 font-semibold">Observation Status</th>
               <th class="py-2 font-semibold"></th>
             </tr>

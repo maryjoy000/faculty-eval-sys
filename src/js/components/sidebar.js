@@ -71,6 +71,17 @@ function renderAdminShell() {
     `;
   }).join("");
 
+  // Dashboard has its own in-page term filter (upper-right of Dashboard Overview),
+  // so skip the header one there to avoid duplicate IDs. Other pages keep it.
+  const termFilterHtml = activePage === "dashboard" ? "" : `
+            <select
+              id="global-term-filter"
+              title="School year / term filter"
+              class="hidden border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            >
+              <option value="all">All history</option>
+            </select>`;
+
   placeholder.innerHTML = `
     <div class="flex min-h-screen relative">
 
@@ -123,13 +134,7 @@ function renderAdminShell() {
           <div class="hidden lg:block"></div>
 
           <div class="flex items-center gap-4">
-            <select
-              id="global-term-filter"
-              title="School year / term filter"
-              class="hidden border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-            >
-              <option value="all">All history</option>
-            </select>
+            ${termFilterHtml}
 
             <span class="text-sm text-gray-600">${scopeLabel}</span>
 

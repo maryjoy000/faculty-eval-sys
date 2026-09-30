@@ -68,12 +68,8 @@ function getFilteredEvaluationRoster() {
 
   return evalRosterCache.filter((faculty) => {
     const name = String(faculty.name || "").toLowerCase();
-    const subjects = (faculty.subjects || [])
-      .map((s) => s.name || s.subject_name || s.code || "")
-      .join(" ")
-      .toLowerCase();
 
-    if (searchTerm && !name.includes(searchTerm) && !subjects.includes(searchTerm)) {
+    if (searchTerm && !name.includes(searchTerm)) {
       return false;
     }
 
@@ -120,7 +116,7 @@ function renderEvaluationFacultyTablePage() {
   if (pageRoster.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="4" class="py-6 text-center text-gray-400">
+        <td colspan="3" class="py-6 text-center text-gray-400">
           No faculty found.
         </td>
       </tr>
@@ -136,20 +132,13 @@ function renderEvaluationFacultyTablePage() {
 
         const actionButtonHtml = isObserved
           ? `<button type="button" class="view-observation-results-btn btn-secondary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">View Results</button>`
-          : `<button type="button" class="start-observation-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Observe</button>`;
+          : `<button type="button" class="start-observation-btn btn-primary text-sm px-4 py-1.5" data-faculty-id="${faculty.id}">Evaluate</button>`;
 
         return `
       <tr class="border-b border-gray-200 last:border-0">
         <td class="py-3 pr-4">${faculty.name}</td>
-        <td class="py-3 pr-4">${(faculty.subjects || [])
-          .map(
-            (subject) =>
-              subject.name || subject.subject_name || subject.code || "",
-          )
-          .filter(Boolean)
-          .join(", ")}
         <td class="py-3 pr-4 ${isObserved ? "text-green-600" : "text-brand"} font-medium">
-          ${isObserved ? "Observed" : "Not yet observed"}
+          ${isObserved ? "Evaluated" : "Not yet evaluated"}
         </td>
         <td class="py-3">${actionButtonHtml}</td>
       </tr>
