@@ -48,6 +48,32 @@
 
     </div>
 
+    <!-- Rating Distribution (per evaluation type, clickable bars) -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between mb-1">
+        <div>
+          <h2 class="font-semibold text-gray-800">Rating Distribution</h2>
+          <p class="text-sm text-gray-500">Faculty headcount per rating band — click a bar to see who</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <select
+            id="rating-distribution-type"
+            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+          >
+            <option value="student">Student Evaluation</option>
+            <option value="classroomObservation">Classroom Observation</option>
+            <option value="peerToPeer">Peer-to-Peer</option>
+            <option value="hrEvaluation">HR Evaluation</option>
+          </select>
+          <button type="button" id="rating-distribution-export-btn" class="btn-secondary text-sm">Export Excel</button>
+        </div>
+      </div>
+      <div class="relative" style="height:16rem">
+        <canvas id="rating-distribution-chart"></canvas>
+      </div>
+      <div id="rating-distribution-drilldown" class="hidden mt-4"></div>
+    </div>
+
     <!-- Recent Evaluations -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
@@ -70,6 +96,7 @@
   <script src="../../js/data/notifications-data.js"></script>
   <script src="../../js/utils/api.js"></script>
   <script src="../../js/data/term-filter.js"></script>
+  <script src="../../assets/js/xlsx.full.min.js"></script>
   <script src="../../js/components/sidebar.js"></script>
   <script src="../../js/data/system-settings.js"></script>
   <script src="../../js/components/confirm-modal.js"></script>

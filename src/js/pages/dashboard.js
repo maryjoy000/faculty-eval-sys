@@ -276,6 +276,186 @@ async function loadRecentEvaluations() {
   }
 }
 // ============================================
+// RATING DISTRIBUTION (per evaluation type)
+// ============================================
+
+let ratingDistributionChart = null;
+let ratingDistributionData = null;
+
+function distributionBandColor(index, total) {
+  if (index === 0) return "#16A34A";
+  if (index === total - 1 && total > 1) return "#DC2626";
+  return "#F59E0B";
+}
+
+function escapeDistributionText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function loadRatingDistribution() {
+  const canvas = document.getElementById("rating-distribution-chart");
+  if (!canvas) return;
+
+  const typeSelect = document.getElementById("rating-distribution-type");
+  const evalType = typeSelect ? typeSelect.value : "student";
+
+  try {
+    ratingDistributionData = await apiGet(
+      withTerm(
+        `/analytics/rating-distribution?evaluation_type=${encodeURIComponent(evalType)}`
+      )
+    );
+
+    renderRatingDistributionChart();
+    clearDistributionDrilldown();
+  } catch (error) {
+    console.error("Failed to load rating distribution:", error);
+    ratingDistributionData = null;
+    renderRatingDistributionChart();
+    clearDistributionDrilldown();
+  }
+}
+
+function renderRatingDistributionChart() {
+  const canvas = document.getElementById("rating-distribution-chart");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  if (ratingDistributionChart) {
+    ratingDistributionChart.destroy();
+    ratingDistributionChart = null;
+  }
+
+  const bands =
+    ratingDistributionData && Array.isArray(ratingDistributionData.bands)
+      ? ratingDistributionData.bands
+      : [];
+
+  ratingDistributionChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: bands.map((band) => band.label),
+      datasets: [
+        {
+          data: bands.map((band) => band.count),
+          backgroundColor: bands.map((_, index) =>
+            distributionBandColor(index, bands.length)
+          ),
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, precision: 0 },
+        },
+      },
+      onClick: (_event, elements) => {
+        if (elements && elements.length) {
+          showDistributionDrilldown(elements[0].index);
+        }
+      },
+      onHover: (event, elements) => {
+        if (event && event.native && event.native.target) {
+          event.native.target.style.cursor =
+            elements && elements.length ? "pointer" : "default";
+        }
+      },
+    },
+  });
+}
+
+function showDistributionDrilldown(bandIndex) {
+  const holder = document.getElementById("rating-distribution-drilldown");
+  if (!holder) return;
+
+  const bands =
+    ratingDistributionData && Array.isArray(ratingDistributionData.bands)
+      ? ratingDistributionData.bands
+      : [];
+  const band = bands[bandIndex];
+
+  if (!band) return;
+
+  const members = Array.isArray(band.faculty) ? band.faculty : [];
+
+  holder.innerHTML = `
+    <h3 class="text-sm font-semibold text-gray-800 mb-2">
+      ${escapeDistributionText(band.label)} — ${members.length} facult${members.length === 1 ? "y" : "ies"}
+    </h3>
+    ${
+      members.length
+        ? members
+            .map(
+              (member) => `
+          <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 text-sm">
+            <span class="text-gray-700">${escapeDistributionText(member.name)}</span>
+            <span class="font-semibold text-gray-800">${Number(member.average).toFixed(2)}</span>
+          </div>`
+            )
+            .join("")
+        : `<p class="text-sm text-gray-400">No faculty in this band.</p>`
+    }`;
+
+  holder.classList.remove("hidden");
+}
+
+function clearDistributionDrilldown() {
+  const holder = document.getElementById("rating-distribution-drilldown");
+  if (!holder) return;
+
+  holder.classList.add("hidden");
+  holder.innerHTML = "";
+}
+
+function exportRatingDistribution() {
+  if (typeof XLSX === "undefined" || !XLSX.utils) {
+    alert("Spreadsheet library failed to load. Please refresh the page and try again.");
+    return;
+  }
+
+  const bands =
+    ratingDistributionData && Array.isArray(ratingDistributionData.bands)
+      ? ratingDistributionData.bands
+      : [];
+
+  if (!bands.length) return;
+
+  const typeSelect = document.getElementById("rating-distribution-type");
+  const typeLabel =
+    typeSelect && typeSelect.options[typeSelect.selectedIndex]
+      ? typeSelect.options[typeSelect.selectedIndex].text
+      : "Evaluation";
+
+  const rows = [["Evaluation Type", "Rating", "Faculty", "Average"]];
+
+  bands.forEach((band) => {
+    (Array.isArray(band.faculty) ? band.faculty : []).forEach((member) => {
+      rows.push([typeLabel, band.label, member.name, member.average]);
+    });
+  });
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  worksheet["!cols"] = [{ wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 12 }];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Rating Distribution");
+  XLSX.writeFile(
+    workbook,
+    `rating-distribution-${new Date().toISOString().slice(0, 10)}.xlsx`
+  );
+}
+
+// ============================================
 // INITIALIZE DASHBOARD
 // ============================================
 
@@ -285,6 +465,7 @@ function reloadDashboardData() {
   loadSentimentData();
   loadTopRatedFaculty();
   loadRecentEvaluations();
+  loadRatingDistribution();
 }
 
 mountPageContent();
@@ -295,6 +476,16 @@ loadSentimentData();
 loadTopRatedFaculty();
 loadRecentEvaluations();
 loadRecentActivityLog();
+loadRatingDistribution();
+
+document
+  .getElementById("rating-distribution-type")
+  ?.addEventListener("change", loadRatingDistribution);
+
+document
+  .getElementById("rating-distribution-export-btn")
+  ?.addEventListener("click", exportRatingDistribution);
+
 initGlobalTermFilter(reloadDashboardData);
 
 (async () => {

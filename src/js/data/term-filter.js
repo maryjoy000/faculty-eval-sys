@@ -69,14 +69,15 @@ function getSelectedTermId() {
 }
 
 // Append ?term_id= to an endpoint path when a term is selected.
-// All participating endpoints take no other query string.
+// Handles paths that already carry a query string.
 function withTerm(path) {
   if (!termsLoadedOnPage) return path;
 
   const termId = getSelectedTermId();
   if (termId === null) return path;
 
-  return `${path}?term_id=${termId}`;
+  const separator = path.indexOf("?") === -1 ? "?" : "&";
+  return `${path}${separator}term_id=${termId}`;
 }
 
 async function initGlobalTermFilter(onChange) {
