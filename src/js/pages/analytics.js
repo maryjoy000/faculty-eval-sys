@@ -37,7 +37,7 @@ let ratingSentimentChart = null;
 
 async function loadAnalytics() {
   try {
-    analyticsData = await apiGet("/analytics/overview");
+    analyticsData = await apiGet(withTerm("/analytics/overview"));
 
     renderStudentSentiment();
     renderPeerSentiment();
@@ -645,3 +645,4 @@ function escapeHtml(value) {
 
 mountPageContent();
 loadAnalytics();
+initGlobalTermFilter(() => loadAnalytics());

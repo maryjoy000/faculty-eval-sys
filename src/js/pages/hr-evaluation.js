@@ -17,8 +17,8 @@ let currentFacultyBeingEvaluated = null;
 
 const hrAnswers = {};
 
-// --- Draft (save progress & continue later; HR evaluations
-// have no comment step, so only answers are stored) ---
+// --- Draft (save progress & continue later; answers plus the
+// required written comment are stored) ---
 let draftOwner = null;
 
 async function initHrDraftContext() {
@@ -26,12 +26,17 @@ async function initHrDraftContext() {
   return draftOwner;
 }
 
+function getHrComment() {
+  const textarea = document.getElementById("hr-comments-textarea");
+  return textarea ? textarea.value : "";
+}
+
 function persistHrDraft() {
   if (!draftOwner || !currentFacultyBeingEvaluated) return;
 
   saveEvalDraft("hr", currentFacultyBeingEvaluated.id, draftOwner, {
     answers: { ...hrAnswers },
-    comment: "",
+    comment: getHrComment(),
   });
 }
 
@@ -162,6 +167,10 @@ async function startHrEvaluation(facultyId) {
     delete hrAnswers[key];
   });
 
+  // Fresh start: never carry the previous faculty's comment over.
+  const freshTextarea = document.getElementById("hr-comments-textarea");
+  if (freshTextarea) freshTextarea.value = "";
+
   await initHrDraftContext();
 
   if (draftOwner && Array.isArray(hrCriteria) && hrCriteria.length) {
@@ -179,6 +188,11 @@ async function startHrEvaluation(facultyId) {
       );
 
       Object.assign(hrAnswers, pruneDraftAnswers(draft.answers, validIds));
+
+      const textarea = document.getElementById("hr-comments-textarea");
+      if (textarea && !textarea.value && draft.comment) {
+        textarea.value = draft.comment;
+      }
     }
   }
 
@@ -298,6 +312,15 @@ function handleHrSubmit() {
     return;
   }
 
+  if (!getHrComment().trim()) {
+    alert("Please write a comment before submitting. A comment is required.");
+
+    const textarea = document.getElementById("hr-comments-textarea");
+    if (textarea) textarea.focus();
+
+    return;
+  }
+
   showReviewModal({
     title: "Review HR Evaluation",
     subtitle: currentFacultyBeingEvaluated
@@ -308,7 +331,8 @@ function handleHrSubmit() {
       answers: hrAnswers,
       scaleLabels: hrScale ? hrScale.scaleLabels : [],
       equivalents: hrScale ? hrScale.equivalents : [],
-      includeComment: false
+      comment: getHrComment(),
+      includeComment: true
     }),
     confirmLabel: "Submit Evaluation",
     onConfirm: finalizeHrEvaluation
@@ -327,7 +351,8 @@ async function finalizeHrEvaluation() {
     await apiPost("/evaluations", {
       evaluation_type: "hrEvaluation",
       faculty_id: currentFacultyBeingEvaluated.id,
-      responses
+      responses,
+      comments: getHrComment()
     });
 
     logActivity(
@@ -498,5 +523,9 @@ mountPageContent();
 document
   .getElementById("hr-submit-btn")
   .addEventListener("click", handleHrSubmit);
+
+document
+  .getElementById("hr-comments-textarea")
+  .addEventListener("input", persistHrDraft);
 
 initializeHrEvaluationPage();

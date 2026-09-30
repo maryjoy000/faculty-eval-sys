@@ -16,8 +16,9 @@ from ..services.aggregation_service import get_faculty_evaluation_summary, get_c
 from ..services.report_service import is_released, mark_viewed
 from ..services.activity_service import log_activity
 from ..utils.sentiment import analyze_sentiment
-from ..utils.evaluation_rules import sanitize_comments
+from ..utils.evaluation_rules import sanitize_comments, validate_required_comment
 from ..models.evaluation_period import EvaluationPeriod
+from ..utils.terms import resolve_term_param, resolve_submission_term
 
 evaluations_bp = Blueprint("evaluations", __name__)
 
@@ -147,24 +148,37 @@ def get_student_evaluation_status(faculty_id):
 @evaluations_bp.route("/count", methods=["GET"])
 @roles_required("admin", "hr")
 def get_evaluation_count():
-    total = Evaluation.query.count()
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    query = Evaluation.query
+    if term_id is not None:
+        query = query.filter(Evaluation.term_id == term_id)
 
     return jsonify({
-        "total": total
+        "total": query.count()
     }), 200
 
 @evaluations_bp.route("/dashboard-sentiment", methods=["GET", "OPTIONS"])
 @roles_required("admin", "hr")
 def get_dashboard_sentiment():
-    student_evaluations = (
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    student_query = (
         Evaluation.query
         .join(EvaluationType)
         .filter(
             EvaluationType.code == "student",
             Evaluation.sentiment_label.isnot(None)
         )
-        .all()
     )
+    if term_id is not None:
+        student_query = student_query.filter(Evaluation.term_id == term_id)
+
+    student_evaluations = student_query.all()
 
     sentiment = {
         "positive": 0,
@@ -207,6 +221,13 @@ def get_dashboard_sentiment():
 @evaluations_bp.route("/dashboard-stats", methods=["GET"])
 @roles_required("admin", "hr")
 def get_dashboard_stats():
+    # Term-scoped numerators over the current roster/assignments: for a
+    # closed term this reads as "that term's submissions measured
+    # against today's roster".
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
     active_faculty = Faculty.query.filter_by(status="Active").all()
     faculty_count = len(active_faculty)
 
@@ -215,12 +236,14 @@ def get_dashboard_stats():
     # --------------------------------------------
     possible_peer_evaluations = faculty_count * max(faculty_count - 1, 0)
 
-    peer_evaluations = (
+    peer_query = (
         Evaluation.query
         .join(EvaluationType)
         .filter(EvaluationType.code == "peerToPeer")
-        .count()
     )
+    if term_id is not None:
+        peer_query = peer_query.filter(Evaluation.term_id == term_id)
+    peer_evaluations = peer_query.count()
 
     peer_completion = (
         (peer_evaluations / possible_peer_evaluations) * 100
@@ -258,12 +281,14 @@ def get_dashboard_stats():
 
         possible_student_evaluations += len(eligible_faculty_ids)
 
-    student_evaluations = (
+    student_query = (
         Evaluation.query
         .join(EvaluationType)
         .filter(EvaluationType.code == "student")
-        .count()
     )
+    if term_id is not None:
+        student_query = student_query.filter(Evaluation.term_id == term_id)
+    student_evaluations = student_query.count()
 
     student_completion = (
         (student_evaluations / possible_student_evaluations) * 100
@@ -274,12 +299,14 @@ def get_dashboard_stats():
     # --------------------------------------------
     # Classroom Observation Completion
     # --------------------------------------------
-    classroom_observations = (
+    classroom_query = (
         Evaluation.query
         .join(EvaluationType)
         .filter(EvaluationType.code == "classroomObservation")
-        .count()
     )
+    if term_id is not None:
+        classroom_query = classroom_query.filter(Evaluation.term_id == term_id)
+    classroom_observations = classroom_query.count()
 
     classroom_observation_completion = (
         (classroom_observations / faculty_count) * 100
@@ -298,14 +325,20 @@ def get_dashboard_stats():
     completed_faculty = 0
 
     for faculty in active_faculty:
-        completed_types = {
-            evaluation_type.code
-            for evaluation_type in EvaluationType.query.join(
+        type_query = (
+            EvaluationType.query.join(
                 Evaluation,
                 Evaluation.evaluation_type_id == EvaluationType.id
             ).filter(
                 Evaluation.faculty_id == faculty.id
-            ).all()
+            )
+        )
+        if term_id is not None:
+            type_query = type_query.filter(Evaluation.term_id == term_id)
+
+        completed_types = {
+            evaluation_type.code
+            for evaluation_type in type_query.all()
         }
 
         if required_types.issubset(completed_types):
@@ -325,10 +358,20 @@ def get_dashboard_stats():
 @evaluations_bp.route("/dashboard-recent", methods=["GET"])
 @roles_required("admin", "hr")
 def get_dashboard_recent_evaluations():
-    evaluations = (
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    recent_query = (
         Evaluation.query
         .join(EvaluationType)
         .filter(EvaluationType.code == "student")
+    )
+    if term_id is not None:
+        recent_query = recent_query.filter(Evaluation.term_id == term_id)
+
+    evaluations = (
+        recent_query
         .order_by(Evaluation.submitted_at.desc())
         .limit(5)
         .all()
@@ -356,12 +399,16 @@ def get_dashboard_recent_evaluations():
 @evaluations_bp.route("/dashboard-top-faculty", methods=["GET"])
 @roles_required("admin", "hr")
 def get_dashboard_top_faculty():
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
     active_faculty = Faculty.query.filter_by(status="Active").all()
 
     results = []
 
     for faculty in active_faculty:
-        summary = get_faculty_evaluation_summary(faculty.id)
+        summary = get_faculty_evaluation_summary(faculty.id, term_id)
         weighted_pct = summary.get("weighted_overall_pct")
 
         if weighted_pct is not None:
@@ -381,6 +428,10 @@ def get_dashboard_top_faculty():
 @evaluations_bp.route("/dashboard-classroom-observations", methods=["GET"])
 @roles_required("admin", "hr")
 def get_dashboard_classroom_observations():
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
     classroom_type = EvaluationType.query.filter_by(
         code="classroomObservation"
     ).first()
@@ -393,12 +444,20 @@ def get_dashboard_classroom_observations():
     results = []
 
     for faculty in active_faculty:
-        evaluation = (
+        observation_query = (
             Evaluation.query
             .filter_by(
                 faculty_id=faculty.id,
                 evaluation_type_id=classroom_type.id
             )
+        )
+        if term_id is not None:
+            observation_query = observation_query.filter(
+                Evaluation.term_id == term_id
+            )
+
+        evaluation = (
+            observation_query
             .order_by(Evaluation.submitted_at.desc())
             .first()
         )
@@ -495,6 +554,13 @@ def submit_evaluation():
                 "error": "No open evaluation period for this evaluation type"
             }), 403
 
+    # Every evaluation records its School Year/Semester: the linked
+    # period's term, else the open term, else unscoped legacy (None).
+    # Closed terms reject new submissions outright.
+    submission_term_id, term_error = resolve_submission_term(period)
+
+    if term_error:
+        return term_error[0], term_error[1]
 
     error = check_duplicate(et.id, faculty_id, evaluator)
     if error:
@@ -542,11 +608,19 @@ def submit_evaluation():
     # Classroom observation is rating-only; comments are dropped
     # server-side regardless of what the client sends.
     comments = sanitize_comments(type_code, comments)
+
+    # Comment-bearing types require exactly one written comment per
+    # submission (1:1 with the evaluation for the sentiment corpus).
+    comment_error = validate_required_comment(type_code, comments)
+    if comment_error:
+        return jsonify({"error": comment_error}), 400
+
     sentiment = analyze_sentiment(comments)
 
     evaluation = Evaluation(
         evaluation_type_id=et.id,
         faculty_id=faculty_id,
+        term_id=submission_term_id,
         evaluator_student_id=evaluator.get("student_id"),
         evaluation_period_id=period.id if period else None,
         evaluator_faculty_id=evaluator.get("faculty_id"),
@@ -774,7 +848,11 @@ def get_faculty_summary(faculty_id):
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    return jsonify(get_faculty_evaluation_summary(faculty_id)), 200
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    return jsonify(get_faculty_evaluation_summary(faculty_id, term_id)), 200
 
 
 @evaluations_bp.route("/<int:faculty_id>/classroom-breakdown", methods=["GET"])
@@ -792,7 +870,11 @@ def get_classroom_breakdown(faculty_id):
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    breakdown = get_classroom_observation_breakdown(faculty_id)
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    breakdown = get_classroom_observation_breakdown(faculty_id, term_id)
     if breakdown is None:
         return jsonify({"error": "No classroom observation exists for this faculty member yet"}), 404
 
@@ -819,7 +901,11 @@ def get_student_breakdown(faculty_id):
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    breakdown = get_student_evaluation_breakdown(faculty_id)
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    breakdown = get_student_evaluation_breakdown(faculty_id, term_id)
 
     if not breakdown:
         return jsonify({
@@ -849,7 +935,11 @@ def get_peer_breakdown(faculty_id):
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    breakdown = get_peer_evaluation_breakdown(faculty_id)
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    breakdown = get_peer_evaluation_breakdown(faculty_id, term_id)
 
     if not breakdown:
         return jsonify({
@@ -879,7 +969,11 @@ def get_hr_breakdown(faculty_id):
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    breakdown = get_hr_evaluation_breakdown(faculty_id)
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    breakdown = get_hr_evaluation_breakdown(faculty_id, term_id)
 
     if not breakdown:
         return jsonify({

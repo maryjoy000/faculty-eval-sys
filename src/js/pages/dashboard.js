@@ -78,7 +78,7 @@ async function loadFacultyCount() {
 
 async function loadEvaluationCompletion() {
   try {
-    const stats = await apiGet("/evaluations/dashboard-stats");
+    const stats = await apiGet(withTerm("/evaluations/dashboard-stats"));
 
     statCards[0].value =
       `${stats.completed_faculty_evaluations}/${stats.total_active_faculty}`;
@@ -107,9 +107,11 @@ const sentimentData = {
   negative: 0
 };
 
+let sentimentDonutChart = null;
+
 async function loadSentimentData() {
   try {
-    const data = await apiGet("/evaluations/dashboard-sentiment");
+    const data = await apiGet(withTerm("/evaluations/dashboard-sentiment"));
 
     sentimentData.positive = data.positive || 0;
     sentimentData.neutral = data.neutral || 0;
@@ -137,6 +139,11 @@ function renderSentimentDonut() {
 
   if (!canvas) return;
 
+  if (sentimentDonutChart) {
+    sentimentDonutChart.destroy();
+    sentimentDonutChart = null;
+  }
+
   const labels = ["Positive", "Neutral", "Negative"];
 
   const values = [
@@ -151,7 +158,7 @@ function renderSentimentDonut() {
     "#DC2626"
   ];
 
-  new Chart(canvas, {
+  sentimentDonutChart = new Chart(canvas, {
     type: "doughnut",
 
     data: {
@@ -194,7 +201,7 @@ async function loadTopRatedFaculty() {
   if (!container) return;
 
   try {
-    const faculty = await apiGet("/evaluations/dashboard-top-faculty");
+    const faculty = await apiGet(withTerm("/evaluations/dashboard-top-faculty"));
 
     if (!faculty.length) {
       container.innerHTML = `
@@ -231,7 +238,7 @@ async function loadRecentEvaluations() {
   if (!container) return;
 
   try {
-    const evaluations = await apiGet("/evaluations/dashboard-recent");
+    const evaluations = await apiGet(withTerm("/evaluations/dashboard-recent"));
 
     if (!evaluations.length) {
       container.innerHTML = `<p class="text-gray-400">No evaluations yet.</p>`;
@@ -272,6 +279,14 @@ async function loadRecentEvaluations() {
 // INITIALIZE DASHBOARD
 // ============================================
 
+// Re-runnable term-scoped section (faculty count + activity log stay global).
+function reloadDashboardData() {
+  loadEvaluationCompletion();
+  loadSentimentData();
+  loadTopRatedFaculty();
+  loadRecentEvaluations();
+}
+
 mountPageContent();
 renderStatCards();
 loadFacultyCount();
@@ -280,6 +295,7 @@ loadSentimentData();
 loadTopRatedFaculty();
 loadRecentEvaluations();
 loadRecentActivityLog();
+initGlobalTermFilter(reloadDashboardData);
 
 (async () => {
   await loadSystemSettings();

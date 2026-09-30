@@ -65,10 +65,27 @@ def set_current_period():
             "error": f"Unknown evaluation type '{applies_to_code}'"
         }), 404
 
+    term_id = data.get("term_id")
+    term = None
+
+    if term_id is not None:
+        from ..models.school_term import SchoolTerm
+
+        term = SchoolTerm.query.get(term_id)
+
+        if not term:
+            return jsonify({"error": "School term not found"}), 404
+
+        if term.status == "closed":
+            return jsonify({
+                "error": f"Cannot add an evaluation period to closed term {term.label}."
+            }), 400
+
     period = EvaluationPeriod(
         start_date=start,
         end_date=end,
-        applies_to_type_id=evaluation_type.id
+        applies_to_type_id=evaluation_type.id,
+        term_id=term.id if term else None,
     )
 
     db.session.add(period)

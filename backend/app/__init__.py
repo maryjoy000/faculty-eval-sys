@@ -21,6 +21,7 @@ from .routes.profile import profile_bp
 from .routes.two_factor import two_factor_bp
 from .routes.system_settings import system_settings_bp
 from .routes.enrollment import sections_bp, students_bp
+from .routes.school_terms import terms_bp
 
 def create_app():
     app = Flask(__name__)
@@ -40,7 +41,7 @@ def create_app():
         user, faculty, advisory, student,
         evaluation_type, evaluation_period, rating_scale, weighting, criteria,
         evaluation, notification, faculty_report, activity_log, system_setting,
-        backup_code, section,
+        backup_code, section, school_term,
     )  # noqa: F401
 
     from .models.user import User
@@ -76,5 +77,6 @@ def create_app():
     app.register_blueprint(system_settings_bp, url_prefix="/api/system-settings")
     app.register_blueprint(sections_bp, url_prefix="/api/sections")
     app.register_blueprint(students_bp, url_prefix="/api/students")
+    app.register_blueprint(terms_bp, url_prefix="/api/school-terms")
     
     return app

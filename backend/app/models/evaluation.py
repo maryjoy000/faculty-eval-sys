@@ -16,6 +16,10 @@ class Evaluation(db.Model):
 
     evaluation_period_id = db.Column(db.Integer, db.ForeignKey("evaluation_periods.id"), nullable=True)
 
+    # The School Year/Semester this evaluation belongs to. NULL means
+    # pre-terms legacy history, which reporting treats as unscoped.
+    term_id = db.Column(db.Integer, db.ForeignKey("school_terms.id"), nullable=True)
+
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     overall_average = db.Column(db.Float, nullable=True)
     overall_rating_pct = db.Column(db.Float, nullable=True)
@@ -29,12 +33,15 @@ class Evaluation(db.Model):
     evaluator_faculty = db.relationship("Faculty", foreign_keys=[evaluator_faculty_id])
     evaluator_user = db.relationship("User", foreign_keys=[evaluator_user_id])
     evaluation_period = db.relationship("EvaluationPeriod")
+    term = db.relationship("SchoolTerm",
+                           backref=db.backref("evaluations", lazy=True))
 
     def to_dict(self):
         return {
             "id": self.id,
             "evaluation_type": self.evaluation_type.code,
             "faculty_id": self.faculty_id,
+            "term_id": self.term_id,
             "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
             "overall_average": self.overall_average,
             "overall_rating_pct": self.overall_rating_pct,

@@ -25,18 +25,29 @@ def compute_effective_weights(weighting):
     }
 
 
-def get_faculty_evaluation_summary(faculty_id):
+def _apply_term_filter(query, term_id):
+    """Restrict an Evaluation query to one school term.
+
+    None means all history (legacy behavior) — callers pass the
+    validated ?term_id= straight through.
+    """
+    if term_id is not None:
+        return query.filter(Evaluation.term_id == term_id)
+    return query
+
+
+def get_faculty_evaluation_summary(faculty_id, term_id=None):
     per_type = {}
 
     for et in EvaluationType.query.all():
-        evaluations = (
+        evaluations_query = (
             Evaluation.query
             .filter_by(
                 evaluation_type_id=et.id,
                 faculty_id=faculty_id
             )
-            .all()
         )
+        evaluations = _apply_term_filter(evaluations_query, term_id).all()
 
         if not evaluations:
             per_type[et.code] = {
@@ -84,7 +95,9 @@ def get_faculty_evaluation_summary(faculty_id):
             )
         }
 
-    weighting = EvaluationWeighting.query.first()
+    # The term's own weighting when scoped, else the global default,
+    # so closed terms keep the weights they were computed with.
+    weighting = EvaluationWeighting.resolve_for_term(term_id)
 
     effective_weights = (
         compute_effective_weights(weighting)
@@ -152,16 +165,19 @@ def get_cot_level_label(hcec):
     return next(l["name"] for l in COT_LEVEL_DESCRIPTIONS if l["level"] == rounded)
 
 
-def get_classroom_observation_breakdown(faculty_id):
+def get_classroom_observation_breakdown(faculty_id, term_id=None):
     """
     Returns the domain > indicator > COT/HCEC/Level breakdown for a
     faculty member's most recent classroom observation, or None if none
     exists yet.
     """
     et = EvaluationType.query.filter_by(code="classroomObservation").first()
-    evaluation = (
+    evaluations_query = (
         Evaluation.query
         .filter_by(evaluation_type_id=et.id, faculty_id=faculty_id)
+    )
+    evaluation = (
+        _apply_term_filter(evaluations_query, term_id)
         .order_by(Evaluation.submitted_at.desc())
         .first()
     )
@@ -212,18 +228,21 @@ def get_classroom_observation_breakdown(faculty_id):
         "domains": domains,
     }
 
-def get_student_evaluation_breakdown(faculty_id):
+def get_student_evaluation_breakdown(faculty_id, term_id=None):
     et = EvaluationType.query.filter_by(code="student").first()
 
     if not et:
         return None
 
-    evaluations = (
+    evaluations_query = (
         Evaluation.query
         .filter_by(
             faculty_id=faculty_id,
             evaluation_type_id=et.id
         )
+    )
+    evaluations = (
+        _apply_term_filter(evaluations_query, term_id)
         .order_by(Evaluation.submitted_at.asc())
         .all()
     )
@@ -378,18 +397,21 @@ def get_student_evaluation_breakdown(faculty_id):
         },
     }
 
-def get_peer_evaluation_breakdown(faculty_id):
+def get_peer_evaluation_breakdown(faculty_id, term_id=None):
     et = EvaluationType.query.filter_by(code="peerToPeer").first()
 
     if not et:
         return None
 
-    evaluations = (
+    evaluations_query = (
         Evaluation.query
         .filter_by(
             evaluation_type_id=et.id,
             faculty_id=faculty_id
         )
+    )
+    evaluations = (
+        _apply_term_filter(evaluations_query, term_id)
         .order_by(Evaluation.submitted_at.asc())
         .all()
     )
@@ -521,18 +543,21 @@ def get_peer_evaluation_breakdown(faculty_id):
         "comments": comments
     }
 
-def get_hr_evaluation_breakdown(faculty_id):
+def get_hr_evaluation_breakdown(faculty_id, term_id=None):
     et = EvaluationType.query.filter_by(code="hrEvaluation").first()
 
     if not et:
         return None
 
-    evaluations = (
+    evaluations_query = (
         Evaluation.query
         .filter_by(
             evaluation_type_id=et.id,
             faculty_id=faculty_id
         )
+    )
+    evaluations = (
+        _apply_term_filter(evaluations_query, term_id)
         .order_by(Evaluation.submitted_at.desc())
         .all()
     )

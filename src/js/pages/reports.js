@@ -140,10 +140,10 @@ async function loadReportDetails(facultyId) {
   };
 
   const [classroom, student, peer, hr] = await Promise.all([
-    getBreakdown(`/evaluations/${facultyId}/classroom-breakdown`),
-    getBreakdown(`/evaluations/${facultyId}/student-breakdown`),
-    getBreakdown(`/evaluations/${facultyId}/peer-breakdown`),
-    getBreakdown(`/evaluations/${facultyId}/hr-breakdown`)
+    getBreakdown(withTerm(`/evaluations/${facultyId}/classroom-breakdown`)),
+    getBreakdown(withTerm(`/evaluations/${facultyId}/student-breakdown`)),
+    getBreakdown(withTerm(`/evaluations/${facultyId}/peer-breakdown`)),
+    getBreakdown(withTerm(`/evaluations/${facultyId}/hr-breakdown`))
   ]);
 
   hrReportDataCache[facultyId] = {
@@ -170,7 +170,7 @@ async function renderReportsTable() {
     const reportResults = await Promise.all(
       activeFaculty.map(async (faculty) => {
         try {
-          return await apiGet(`/evaluations/${faculty.id}`);
+          return await apiGet(withTerm(`/evaluations/${faculty.id}`));
         } catch (error) {
           console.error(
             `Failed to load report for faculty ${faculty.id}:`,
@@ -346,6 +346,24 @@ async function initAdminReports() {
   attachDetailViewListeners();
 
   await openReportFromQueryParam();
+
+  initGlobalTermFilter(onReportsTermChange);
+}
+
+// Term changes invalidate cached breakdowns; refresh whichever view
+// is currently visible so stale-term data never lingers.
+async function onReportsTermChange() {
+  hrReportDataCache = {};
+
+  const detailView = document.getElementById("reports-detail-view");
+
+  if (detailView && !detailView.classList.contains("hidden") && currentReportFaculty) {
+    await showReportDetail(currentReportFaculty);
+  } else {
+    const pager = getAdminReportsPager();
+    if (pager) pager.reset();
+    await renderReportsTable();
+  }
 }
 
 initAdminReports();

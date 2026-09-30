@@ -437,8 +437,11 @@ def _build_latest_comments(evaluations, evaluation_type_by_id):
     return comments[:10]
 
 
-def get_analytics_overview():
+def get_analytics_overview(term_id=None):
     all_evals = Evaluation.query.all()
+
+    if term_id is not None:
+        all_evals = [e for e in all_evals if e.term_id == term_id]
 
     evaluation_types = EvaluationType.query.all()
 
@@ -484,7 +487,12 @@ def get_analytics_overview():
         for i in range(1, 6)
     }
 
+    scoped_ids = {e.id for e in all_evals}
+
     for response in EvaluationResponse.query.all():
+        if response.evaluation_id not in scoped_ids:
+            continue
+
         key = str(response.rating_value)
 
         if key in distribution:

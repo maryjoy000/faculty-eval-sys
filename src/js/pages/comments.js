@@ -273,6 +273,15 @@ async function initializeCommentsPage() {
     document.getElementById("back-btn").addEventListener("click", goBack);
 
     document.getElementById("submit-btn").addEventListener("click", async () => {
+      const pendingComment = document.getElementById("comments-textarea").value;
+
+      if (!pendingComment.trim()) {
+        alert("Please write a comment before submitting. A comment is required.");
+
+        document.getElementById("comments-textarea").focus();
+        return;
+      }
+
       if (!ratingParts.length) {
         try {
           await loadStudentCriteria();

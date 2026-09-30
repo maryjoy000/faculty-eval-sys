@@ -125,6 +125,12 @@ async function handleSubmit() {
   const answers = JSON.parse(sessionStorage.getItem("peerEvaluationAnswers") || "{}");
   const colleague = JSON.parse(sessionStorage.getItem("evaluatingColleague") || "{}");
 
+  if (!commentText) {
+    alert("Please write a comment before submitting. A comment is required.");
+    document.getElementById("comments-textarea").focus();
+    return;
+  }
+
   const { categoryScores, overallAverage } = calculateCategoryScores(answers);
   const maxRating = Math.max(
   ...peerScale.scaleLabels.map(
