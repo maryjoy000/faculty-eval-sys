@@ -678,6 +678,150 @@ function attachWeightingFormListener() {
 }
 
 // ============================================
+// SCHOOL TERMS
+// ============================================
+
+let termsCache = [];
+
+async function loadTerms() {
+  try {
+    termsCache = await apiGet("/school-terms");
+    renderTermsTable();
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function termStatusBadge(status) {
+  if (status === "open") {
+    return `<span class="text-green-600 font-medium">Open</span>`;
+  }
+  if (status === "closed") {
+    return `<span class="text-gray-400 font-medium">Closed</span>`;
+  }
+  return `<span class="text-amber-600 font-medium">Draft</span>`;
+}
+
+function renderTermsTable() {
+  const tableBody = document.getElementById("terms-table-body");
+  if (!tableBody) return;
+
+  if (!termsCache.length) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="py-6 text-center text-gray-400">
+          No school terms yet. Create the first one above.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tableBody.innerHTML = termsCache
+    .map((term) => {
+      let actionHtml = "";
+
+      if (term.status === "draft") {
+        actionHtml = `<button type="button" class="open-term-btn text-brand hover:underline" data-term-id="${term.id}">Open</button>`;
+      } else if (term.status === "open") {
+        actionHtml = `<button type="button" class="close-term-btn text-red-500 hover:underline" data-term-id="${term.id}">End Term</button>`;
+      } else {
+        actionHtml = `<button type="button" class="reopen-term-btn text-brand hover:underline" data-term-id="${term.id}">Reopen</button>`;
+      }
+
+      return `
+      <tr class="border-b border-gray-200 last:border-0">
+        <td class="py-3 pr-4 font-medium text-gray-800">${term.school_year}</td>
+        <td class="py-3 pr-4 text-gray-500">${term.semester} Semester</td>
+        <td class="py-3 pr-4">${termStatusBadge(term.status)}</td>
+        <td class="py-3 text-sm">${actionHtml}</td>
+      </tr>
+    `;
+    })
+    .join("");
+
+  document.querySelectorAll(".open-term-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await apiPut(`/school-terms/${btn.dataset.termId}/open`, {});
+        await loadTerms();
+        showToast("Term opened.", "success");
+      } catch (error) {
+        showError(error);
+      }
+    });
+  });
+
+  document.querySelectorAll(".reopen-term-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await apiPut(`/school-terms/${btn.dataset.termId}/reopen`, {});
+        await loadTerms();
+        showToast("Term reopened.", "success");
+      } catch (error) {
+        showError(error);
+      }
+    });
+  });
+
+  document.querySelectorAll(".close-term-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const term = termsCache.find(
+        (t) => String(t.id) === String(btn.dataset.termId)
+      );
+      if (!term) return;
+
+      showConfirmModal({
+        title: "End This Term?",
+        message: `"${term.school_year} ${term.semester}" will become historical: new submissions stop, but reports stay readable. You can reopen it later if needed.`,
+        confirmLabel: "End Term",
+        isDestructive: true,
+        onConfirm: async () => {
+          try {
+            await apiPut(`/school-terms/${term.id}/close`, {});
+            await loadTerms();
+            showToast("Term ended.", "success");
+          } catch (error) {
+            showError(error);
+          }
+        },
+      });
+    });
+  });
+}
+
+function attachTermFormListener() {
+  document
+    .getElementById("term-form")
+    .addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const schoolYear = document
+        .getElementById("term-year-input")
+        .value.trim();
+      const semester = document.getElementById("term-semester-input").value;
+
+      if (!schoolYear) {
+        showToast("School year is required (e.g. 2026-2027).", "warning");
+        return;
+      }
+
+      try {
+        await apiPost("/school-terms", {
+          school_year: schoolYear,
+          semester,
+        });
+
+        document.getElementById("term-form").reset();
+        await loadTerms();
+        showToast("Term created as draft. Open it when ready.", "success");
+      } catch (error) {
+        showError(error);
+      }
+    });
+}
+
+// ============================================
 // INITIALIZE
 // ============================================
 
@@ -694,6 +838,7 @@ async function initializeSystemManagement() {
   attachAccountModalListeners();
 
   attachWeightingFormListener();
+  attachTermFormListener();
 
   await Promise.all([
     loadAcademicYearForm(),
@@ -701,6 +846,7 @@ async function initializeSystemManagement() {
     loadAnnouncementForm(),
     loadAccounts(),
     loadWeightingForm(),
+    loadTerms(),
   ]);
 }
 

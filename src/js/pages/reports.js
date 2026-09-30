@@ -30,12 +30,49 @@ function getAdminReportsPager() {
   return adminReportsPager;
 }
 
+function reportHasResults(report) {
+  if (!report || !report.per_type) return false;
+
+  return [
+    report.per_type.classroomObservation,
+    report.per_type.student,
+    report.per_type.peerToPeer,
+    report.per_type.hrEvaluation,
+  ].some((data) => data && typeof data.average_rating === "number");
+}
+
+function getFilteredReportRows() {
+  const searchTerm = (
+    document.getElementById("reports-search-input")?.value || ""
+  )
+    .trim()
+    .toLowerCase();
+  const statusFilter =
+    document.getElementById("reports-status-filter")?.value || "all";
+
+  return adminReportRowsCache.filter(({ faculty, report }) => {
+    if (
+      searchTerm &&
+      !String(faculty.name || "").toLowerCase().includes(searchTerm)
+    ) {
+      return false;
+    }
+
+    if (statusFilter === "all") return true;
+
+    const hasResults = reportHasResults(report);
+
+    return statusFilter === "with-results" ? hasResults : !hasResults;
+  });
+}
+
 function renderAdminReportsPage() {
   const tableBody = document.getElementById("admin-reports-table-body");
   if (!tableBody) return;
 
   const pager = getAdminReportsPager();
-  const pageRows = pager ? pager.paginate(adminReportRowsCache) : adminReportRowsCache;
+  const filtered = getFilteredReportRows();
+  const pageRows = pager ? pager.paginate(filtered) : filtered;
 
   if (pageRows.length === 0) {
     tableBody.innerHTML = `
@@ -116,11 +153,29 @@ function renderAdminReportsPage() {
   });
 
   if (pager) {
-    pager.render("admin-reports-pagination", adminReportRowsCache.length, renderAdminReportsPage);
+    pager.render("admin-reports-pagination", filtered.length, renderAdminReportsPage);
   } else {
     const fallbackContainer = document.getElementById("admin-reports-pagination");
     if (fallbackContainer) fallbackContainer.innerHTML = "";
   }
+}
+
+function attachReportsFilterListeners() {
+  document
+    .getElementById("reports-search-input")
+    ?.addEventListener("input", () => {
+      const pager = getAdminReportsPager();
+      if (pager) pager.reset();
+      renderAdminReportsPage();
+    });
+
+  document
+    .getElementById("reports-status-filter")
+    ?.addEventListener("change", () => {
+      const pager = getAdminReportsPager();
+      if (pager) pager.reset();
+      renderAdminReportsPage();
+    });
 }
 // ============================================
 // LOAD REPORT LIST
@@ -344,6 +399,7 @@ async function initAdminReports() {
   await renderReportsTable();
 
   attachDetailViewListeners();
+  attachReportsFilterListeners();
 
   await openReportFromQueryParam();
 

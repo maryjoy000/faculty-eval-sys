@@ -25,6 +25,22 @@
 
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
           <div id="draft-resume-banner" class="hidden"></div>
+
+          <div class="flex flex-col sm:flex-row gap-3 mb-4">
+            <input
+              type="text" id="hr-evaluation-search-input" placeholder="Search faculty name..."
+              class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            >
+            <select
+              id="hr-evaluation-status-filter"
+              class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="evaluated">Evaluated Only</option>
+              <option value="not-evaluated">Not Yet Evaluated</option>
+            </select>
+          </div>
+
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
               <thead>

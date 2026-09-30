@@ -82,10 +82,61 @@ async function renderHrFacultyTable() {
   if (!tableBody) return;
 
   try {
-    const statusMap = await getHrEvaluationStatus();
+    hrStatusMapCache = await getHrEvaluationStatus();
+    renderHrFacultyTablePage();
+  } catch (error) {
+    console.error("Failed to load HR evaluation status:", error);
+
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="3" class="py-6 text-center text-red-500">
+          Unable to load faculty evaluation status.
+        </td>
+      </tr>
+    `;
+    const fallbackContainer = document.getElementById("hr-faculty-pagination");
+    if (fallbackContainer) fallbackContainer.innerHTML = "";
+  }
+}
+
+let hrStatusMapCache = new Map();
+
+function getFilteredHrFaculty() {
+  const searchTerm = (
+    document.getElementById("hr-evaluation-search-input")?.value || ""
+  )
+    .trim()
+    .toLowerCase();
+  const statusFilter =
+    document.getElementById("hr-evaluation-status-filter")?.value || "all";
+
+  return facultyRosterCache.filter((faculty) => {
+    if (
+      searchTerm &&
+      !String(faculty.name || "").toLowerCase().includes(searchTerm)
+    ) {
+      return false;
+    }
+
+    if (statusFilter === "all") return true;
+
+    const status = hrStatusMapCache.get(String(faculty.id));
+    const isEvaluated = Boolean(status?.completed);
+
+    return statusFilter === "evaluated" ? isEvaluated : !isEvaluated;
+  });
+}
+
+function renderHrFacultyTablePage() {
+  const tableBody = document.getElementById("hr-faculty-table-body");
+  if (!tableBody) return;
+
+  try {
+    const statusMap = hrStatusMapCache;
+    const filtered = getFilteredHrFaculty();
 
     const pager = getHrFacultyPager();
-    const pageItems = pager ? pager.paginate(facultyRosterCache) : facultyRosterCache;
+    const pageItems = pager ? pager.paginate(filtered) : filtered;
 
     if (pageItems.length === 0) {
       tableBody.innerHTML = `
@@ -128,7 +179,7 @@ async function renderHrFacultyTable() {
     }
 
     if (pager) {
-      pager.render("hr-faculty-pagination", facultyRosterCache.length, renderHrFacultyTable);
+      pager.render("hr-faculty-pagination", filtered.length, renderHrFacultyTablePage);
     } else {
       const fallbackContainer = document.getElementById("hr-faculty-pagination");
       if (fallbackContainer) fallbackContainer.innerHTML = "";
@@ -141,9 +192,8 @@ async function renderHrFacultyTable() {
           startHrEvaluation(button.dataset.facultyId);
         });
       });
-
   } catch (error) {
-    console.error("Failed to load HR evaluation status:", error);
+    console.error("Failed to render HR evaluation table:", error);
 
     tableBody.innerHTML = `
       <tr>
@@ -491,10 +541,29 @@ async function renderHrDraftResumeBanner() {
   });
 }
 
+function attachHrEvaluationFilterListeners() {
+  document
+    .getElementById("hr-evaluation-search-input")
+    ?.addEventListener("input", () => {
+      const pager = getHrFacultyPager();
+      if (pager) pager.reset();
+      renderHrFacultyTablePage();
+    });
+
+  document
+    .getElementById("hr-evaluation-status-filter")
+    ?.addEventListener("change", () => {
+      const pager = getHrFacultyPager();
+      if (pager) pager.reset();
+      renderHrFacultyTablePage();
+    });
+}
+
 async function initializeHrEvaluationPage() {
   try {
     await loadHrEvaluationData();
     await renderHrFacultyTable();
+    attachHrEvaluationFilterListeners();
     await renderHrDraftResumeBanner();
     await checkUrlForDirectEvaluation();
   } catch (error) {

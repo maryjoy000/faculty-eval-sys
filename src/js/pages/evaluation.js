@@ -54,25 +54,68 @@ function getEvaluationFacultyPager() {
 }
 
 // --- Render the faculty selection table ---
+let evalRosterCache = [];
+let evalObservationsCache = [];
+
+function getFilteredEvaluationRoster() {
+  const searchTerm = (
+    document.getElementById("evaluation-search-input")?.value || ""
+  )
+    .trim()
+    .toLowerCase();
+  const statusFilter =
+    document.getElementById("evaluation-status-filter")?.value || "all";
+
+  return evalRosterCache.filter((faculty) => {
+    const name = String(faculty.name || "").toLowerCase();
+    const subjects = (faculty.subjects || [])
+      .map((s) => s.name || s.subject_name || s.code || "")
+      .join(" ")
+      .toLowerCase();
+
+    if (searchTerm && !name.includes(searchTerm) && !subjects.includes(searchTerm)) {
+      return false;
+    }
+
+    if (statusFilter === "all") return true;
+
+    const isObserved = evalObservationsCache.some(
+      (item) => String(item.faculty_id) === String(faculty.id)
+    );
+
+    return statusFilter === "observed" ? isObserved : !isObserved;
+  });
+}
+
 async function renderEvaluationFacultyTable() {
   const tableBody = document.getElementById("evaluation-faculty-table-body");
   if (!tableBody) return;
 
-  const roster = await loadFacultyRoster();
-
-  let observations = [];
+  evalRosterCache = await loadFacultyRoster();
+  evalObservationsCache = [];
 
   try {
-    observations = await apiGet(
+    evalObservationsCache = await apiGet(
       "/evaluations/dashboard-classroom-observations",
     );
   } catch (error) {
     console.error("Failed to load classroom observations:", error);
   }
 
+  renderEvaluationFacultyTablePage();
+}
+
+function renderEvaluationFacultyTablePage() {
+  const tableBody = document.getElementById("evaluation-faculty-table-body");
+  if (!tableBody) return;
+
+  const roster = evalRosterCache;
+  const observations = evalObservationsCache;
+  const filtered = getFilteredEvaluationRoster();
+
   tableBody.innerHTML = "";
   const pager = getEvaluationFacultyPager();
-  const pageRoster = pager ? pager.paginate(roster) : roster;
+  const pageRoster = pager ? pager.paginate(filtered) : filtered;
 
   if (pageRoster.length === 0) {
     tableBody.innerHTML = `
@@ -116,7 +159,7 @@ async function renderEvaluationFacultyTable() {
   }
 
   if (pager) {
-    pager.render("evaluation-faculty-pagination", roster.length, renderEvaluationFacultyTable);
+    pager.render("evaluation-faculty-pagination", filtered.length, renderEvaluationFacultyTablePage);
   } else {
     const fallbackContainer = document.getElementById("evaluation-faculty-pagination");
     if (fallbackContainer) fallbackContainer.innerHTML = "";
@@ -146,6 +189,24 @@ async function renderEvaluationFacultyTable() {
       }
     });
   });
+}
+
+function attachEvaluationFilterListeners() {
+  document
+    .getElementById("evaluation-search-input")
+    ?.addEventListener("input", () => {
+      const pager = getEvaluationFacultyPager();
+      if (pager) pager.reset();
+      renderEvaluationFacultyTablePage();
+    });
+
+  document
+    .getElementById("evaluation-status-filter")
+    ?.addEventListener("change", () => {
+      const pager = getEvaluationFacultyPager();
+      if (pager) pager.reset();
+      renderEvaluationFacultyTablePage();
+    });
 }
 
 // --- Draft resume banner (save progress & continue later) ---
@@ -585,6 +646,7 @@ async function initializeEvaluationPage() {
 
     await renderEvaluationFacultyTable();
     await renderObservationDraftBanner();
+    attachEvaluationFilterListeners();
   } catch (error) {
     console.error("Failed to initialize classroom observation:", error);
 
