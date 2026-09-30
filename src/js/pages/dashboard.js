@@ -239,7 +239,7 @@ var recentEvaluationsPager = null;
 function getRecentEvaluationsPager() {
   if (!recentEvaluationsPager) {
     if (typeof TablePagination !== "undefined" && TablePagination.create) {
-      recentEvaluationsPager = TablePagination.create({ defaultPerPage: 5 });
+      recentEvaluationsPager = TablePagination.create({ defaultPerPage: 5, pageSizeOptions: [5, 10, 25, 50] });
     } else {
       recentEvaluationsPager = null;
     }

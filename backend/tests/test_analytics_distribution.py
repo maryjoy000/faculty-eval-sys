@@ -184,3 +184,18 @@ def test_distribution_validation(admin_client):
     assert admin_client.get(
         "/api/analytics/rating-distribution?evaluation_type=student&term_id=nope"
     ).status_code == 400
+
+
+def test_overview_respects_term(admin_client):
+    with admin_client.application.app_context():
+        term_b = SchoolTerm.query.filter_by(school_year="2024-2025").first()
+
+    unscoped = admin_client.get("/api/analytics/overview").get_json()
+    assert unscoped["total_evaluations"] == 3
+    assert unscoped["evaluations_by_type"]["student"] == 3
+
+    scoped = admin_client.get(
+        f"/api/analytics/overview?term_id={term_b.id}"
+    ).get_json()
+    assert scoped["total_evaluations"] == 1
+    assert scoped["evaluations_by_type"]["student"] == 1

@@ -71,7 +71,7 @@
             <option value="peerToPeer">Peer-to-Peer</option>
             <option value="hrEvaluation">HR Evaluation</option>
           </select>
-          <button type="button" id="rating-distribution-export-btn" class="btn-secondary text-sm">Export Excel</button>
+          <button type="button" id="rating-distribution-export-btn" class="btn-secondary text-sm">Export</button>
         </div>
       </div>
       <div class="relative" style="height:16rem">
@@ -83,18 +83,18 @@
     <!-- Recent Evaluations -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
         <h2 class="font-semibold text-gray-800">Recent Evaluations</h2>
         <p class="text-sm text-gray-500 mb-4">Latest submissions from students</p>
-        <div id="recent-evaluations-list" class="text-sm text-gray-400">No data yet.</div>
-        <div id="recent-evaluations-pagination"></div>
+        <div id="recent-evaluations-list" class="text-sm text-gray-400 flex-1">No data yet.</div>
+        <div id="recent-evaluations-pagination" class="mt-auto pt-2"></div>
     </div>
 
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
         <h2 class="font-semibold text-gray-800">Recent Activity Log</h2>
         <p class="text-sm text-gray-500 mb-4">Latest actions performed in the system</p>
-        <div id="recent-activity-log-list" class="text-sm text-gray-400">No data yet.</div>
-        <div id="recent-activity-log-pagination"></div>
+        <div id="recent-activity-log-list" class="text-sm text-gray-400 flex-1">No data yet.</div>
+        <div id="recent-activity-log-pagination" class="mt-auto pt-2"></div>
     </div>
 
   </template>

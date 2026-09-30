@@ -18,14 +18,17 @@
 
   <template id="page-content-template">
 
-    <div class="mb-6">
-      <h1 class="text-2xl font-bold text-gray-800">
-        Sentiment Analysis
-      </h1>
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">
+          Sentiment Analysis
+        </h1>
 
-      <p class="text-sm text-gray-500 mt-1">
-        Current semester qualitative feedback from student and peer evaluations.
-      </p>
+        <p class="text-sm text-gray-500 mt-1">
+          Current semester qualitative feedback from student and peer evaluations.
+        </p>
+      </div>
+      <button type="button" id="analytics-export-btn" class="btn-secondary text-sm shrink-0">Export Excel</button>
     </div>
 
 
@@ -178,6 +181,7 @@
   <script src="../../js/data/notifications-data.js"></script>
   <script src="../../js/utils/api.js"></script>
   <script src="../../js/data/term-filter.js"></script>
+  <script src="../../assets/js/xlsx.full.min.js"></script>
   <script src="../../js/components/sidebar.js"></script>
   <script src="../../js/components/confirm-modal.js"></script>
   <script src="../../js/data/faculty-roster.js"></script>

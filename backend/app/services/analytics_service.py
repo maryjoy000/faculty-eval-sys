@@ -532,7 +532,7 @@ def get_analytics_overview(term_id=None):
     scored = []
 
     for faculty in Faculty.query.all():
-        summary = get_faculty_evaluation_summary(faculty.id)
+        summary = get_faculty_evaluation_summary(faculty.id, term_id)
 
         if summary["weighted_overall_pct"] is not None:
             scored.append({

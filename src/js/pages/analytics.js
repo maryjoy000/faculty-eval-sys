@@ -640,9 +640,98 @@ function escapeHtml(value) {
 
 
 // ============================================
+// EXPORT WORKBOOK (.xlsx)
+// ============================================
+
+function exportAnalyticsWorkbook() {
+  if (typeof XLSX === "undefined" || !XLSX.utils) {
+    alert("Spreadsheet library failed to load. Please refresh the page and try again.");
+    return;
+  }
+
+  if (!analyticsData) return;
+
+  const workbook = XLSX.utils.book_new();
+
+  function addSheet(name, header, rows) {
+    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    worksheet["!cols"] = header.map(() => ({ wch: 22 }));
+    XLSX.utils.book_append_sheet(workbook, worksheet, name);
+  }
+
+  const byType = analyticsData.evaluations_by_type || {};
+
+  addSheet(
+    "Overview",
+    ["Metric", "Value"],
+    [
+      ["Total evaluations", analyticsData.total_evaluations ?? 0],
+      ["Overall average rating %", analyticsData.overall_average_rating_pct ?? "—"],
+      ...Object.keys(byType).map((code) => [`Evaluations (${code})`, byType[code]]),
+    ]
+  );
+
+  ["student_sentiment", "peer_sentiment"].forEach((key) => {
+    const summary = analyticsData[key] || {};
+    const counts = summary.counts || {};
+    const percentages = summary.percentages || {};
+
+    addSheet(
+      key === "student_sentiment" ? "Student Sentiment" : "Peer Sentiment",
+      ["Sentiment", "Count", "Percent"],
+      ["Positive", "Neutral", "Negative"].map((label) => [
+        label,
+        counts[label] ?? 0,
+        percentages[label] ?? 0,
+      ])
+    );
+  });
+
+  addSheet(
+    "Feedback Themes",
+    ["Theme", "Mentions"],
+    (analyticsData.common_themes || []).map((item) => [
+      item.theme || "",
+      item.mentions || 0,
+    ])
+  );
+
+  addSheet(
+    "Testimonials",
+    ["Comment", "Source", "Sentiment"],
+    (analyticsData.key_testimonials || []).map((item) => [
+      item.text || "",
+      item.source || "",
+      item.sentiment || "",
+    ])
+  );
+
+  addSheet(
+    "Latest Comments",
+    ["Comment", "Source", "Sentiment", "Submitted"],
+    (analyticsData.latest_comments || []).map((item) => [
+      item.text || "",
+      item.source || "",
+      item.sentiment || "",
+      item.submitted_at || "",
+    ])
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `sentiment-analysis-${new Date().toISOString().slice(0, 10)}.xlsx`
+  );
+}
+
+
+// ============================================
 // START
 // ============================================
 
 mountPageContent();
 loadAnalytics();
 initGlobalTermFilter(() => loadAnalytics());
+
+document
+  .getElementById("analytics-export-btn")
+  ?.addEventListener("click", exportAnalyticsWorkbook);

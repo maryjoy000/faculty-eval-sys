@@ -17,7 +17,7 @@ var activityLogPager = null;
 function getActivityLogPager() {
   if (!activityLogPager) {
     if (typeof TablePagination !== "undefined" && TablePagination.create) {
-      activityLogPager = TablePagination.create({ defaultPerPage: 5 });
+      activityLogPager = TablePagination.create({ defaultPerPage: 5, pageSizeOptions: [5, 10, 25, 50] });
     } else {
       activityLogPager = null;
     }
