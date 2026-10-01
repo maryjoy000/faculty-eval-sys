@@ -722,7 +722,7 @@ function buildSchoolYearOptions() {
   const currentYear = new Date().getFullYear();
   const options = [];
 
-  for (let start = currentYear - 10; start <= currentYear + 10; start++) {
+  for (let start = currentYear; start <= currentYear + 10; start++) {
     options.push(`${start}-${start + 1}`);
   }
 
@@ -794,11 +794,42 @@ function attachTermStatusFilterListener() {
     ?.addEventListener("change", renderTermsTable);
 }
 
+function renderArchivedTermsTable() {
+  const tableBody = document.getElementById("archived-terms-table-body");
+  if (!tableBody) return;
+
+  const archivedTerms = termsCache.filter((term) => term.status === "archived");
+
+  if (!archivedTerms.length) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="3" class="py-6 text-center text-gray-400">
+          No archived terms.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tableBody.innerHTML = archivedTerms
+    .map((term) => `
+      <tr class="border-b border-gray-200 last:border-0">
+        <td class="py-3 pr-4 font-medium text-gray-800">${term.school_year}</td>
+        <td class="py-3 pr-4 text-gray-500">${term.semester} Term</td>
+        <td class="py-3 text-sm"><button type="button" class="reopen-term-btn text-brand hover:underline" data-term-id="${term.id}">Reopen</button> <button type="button" class="delete-term-btn text-red-500 hover:underline" data-term-id="${term.id}">Delete</button></td>
+      </tr>
+    `)
+    .join("");
+}
+
 function renderTermsTable() {
   const tableBody = document.getElementById("terms-table-body");
   if (!tableBody) return;
 
-  if (!termsCache.length) {
+  // Archived terms live on their own tab; the main table shows the rest.
+  const activeTerms = termsCache.filter((term) => term.status !== "archived");
+
+  if (!activeTerms.length) {
     tableBody.innerHTML = `
       <tr>
         <td colspan="4" class="py-6 text-center text-gray-400">
@@ -806,26 +837,22 @@ function renderTermsTable() {
         </td>
       </tr>
     `;
-    return;
-  }
+  } else {
+    const statusFilter = getTermStatusFilter();
+    const visibleTerms = activeTerms.filter(
+      (term) => statusFilter === "all" || term.status === statusFilter
+    );
 
-  const statusFilter = getTermStatusFilter();
-  const visibleTerms = termsCache.filter(
-    (term) => statusFilter === "all" || term.status === statusFilter
-  );
-
-  if (!visibleTerms.length) {
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="4" class="py-6 text-center text-gray-400">
-          No terms with this status.
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tableBody.innerHTML = visibleTerms
+    if (!visibleTerms.length) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="py-6 text-center text-gray-400">
+            No terms with this status.
+          </td>
+        </tr>
+      `;
+    } else {
+      tableBody.innerHTML = visibleTerms
     .map((term) => {
       let actionHtml = "";
       const archiveBtn = `<button type="button" class="archive-term-btn text-amber-600 hover:underline" data-term-id="${term.id}">Archive</button>`;
@@ -850,6 +877,10 @@ function renderTermsTable() {
     `;
     })
     .join("");
+    }
+  }
+
+  renderArchivedTermsTable();
 
   document.querySelectorAll(".open-term-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {

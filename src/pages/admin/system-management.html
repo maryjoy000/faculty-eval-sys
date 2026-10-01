@@ -23,6 +23,7 @@
       <!-- Settings sub-navigation -->
       <nav class="lg:w-64 flex-shrink-0 bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex lg:flex-col gap-1 overflow-x-auto">
         <button type="button" class="settings-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="academic-year">Academic Year</button>
+        <button type="button" class="settings-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="archived-terms">Archived Terms</button>
         <button type="button" class="settings-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="weighting">Score Weighting</button>
         <button type="button" class="settings-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="evaluation-period">Evaluation Period</button>
         <button type="button" class="settings-tab-btn text-left px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap" data-tab="announcement">Announcement</button>
@@ -59,7 +60,6 @@
                   <option value="draft">Draft</option>
                   <option value="open">Open</option>
                   <option value="closed">Closed</option>
-                  <option value="archived">Archived</option>
               </select>
           </div>
 
@@ -76,6 +76,25 @@
                   <tbody id="terms-table-body"></tbody>
               </table>
           </div>
+        </div>
+
+        <div id="settings-panel-archived-terms"
+            class="settings-panel hidden bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h2 class="font-semibold text-gray-800 mb-1">Archived Terms</h2>
+            <p class="text-sm text-gray-500 mb-4">Terms put aside from the active list. Reopen one to bring it back, or permanently delete it once it holds no evaluations.</p>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-300 text-gray-700">
+                            <th class="py-2 pr-4 font-semibold">School Year</th>
+                            <th class="py-2 pr-4 font-semibold">Term</th>
+                            <th class="py-2 font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archived-terms-table-body"></tbody>
+                </table>
+            </div>
         </div>
 
         <div id="settings-panel-weighting" class="settings-panel hidden bg-white rounded-xl border border-gray-200 shadow-sm p-6">

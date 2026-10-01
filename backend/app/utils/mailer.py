@@ -1,41 +1,71 @@
-"""Minimal SMTP email sender (stdlib only).
+"""Transactional email sender via the Resend HTTP API (stdlib only).
 
 Used for password-reset links. Configuration comes from the app config
-(MAIL_SERVER / MAIL_PORT / MAIL_USERNAME / MAIL_PASSWORD / MAIL_FROM).
-Raises SMTPNotConfigured or an smtplib error on failure so callers can log
-the problem without leaking it to the client.
+(RESEND_API_KEY / MAIL_FROM / MAIL_FROM_NAME). Raises EmailNotConfigured
+or a RuntimeError on failure so callers can log the problem without
+leaking it to the client.
 """
-import smtplib
-from email.message import EmailMessage
+import json
+import urllib.error
+import urllib.request
 
 from flask import current_app
 
+RESEND_API_URL = "https://api.resend.com/emails"
 
-class SMTPNotConfigured(RuntimeError):
-    """Raised when MAIL_USERNAME / MAIL_PASSWORD are not set."""
+
+class EmailNotConfigured(RuntimeError):
+    """Raised when RESEND_API_KEY / MAIL_FROM are not set."""
+
+
+# Backwards-compatible alias (previous SMTP-based name).
+SMTPNotConfigured = EmailNotConfigured
 
 
 def send_email(to_address, subject, body_text):
-    server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
-    port = int(current_app.config.get("MAIL_PORT", 587))
-    username = (current_app.config.get("MAIL_USERNAME") or "").strip()
-    password = (current_app.config.get("MAIL_PASSWORD") or "").strip()
-    sender = (current_app.config.get("MAIL_FROM") or username).strip()
+    api_key = (current_app.config.get("RESEND_API_KEY") or "").strip()
+    sender = (current_app.config.get("MAIL_FROM") or "").strip()
     sender_name = (current_app.config.get("MAIL_FROM_NAME") or "").strip()
 
-    if not username or not password or not sender:
-        raise SMTPNotConfigured(
-            "MAIL_USERNAME / MAIL_PASSWORD / MAIL_FROM are not configured"
+    if not api_key or not sender:
+        raise EmailNotConfigured(
+            "RESEND_API_KEY / MAIL_FROM are not configured"
         )
 
-    message = EmailMessage()
-    message["From"] = f"{sender_name} <{sender}>" if sender_name else sender
-    message["To"] = to_address
-    message["Subject"] = subject
-    message.set_content(body_text)
+    recipient = (to_address or "").strip()
+    if not recipient:
+        raise EmailNotConfigured("No recipient address for this account")
 
-    with smtplib.SMTP(server, port, timeout=20) as smtp:
-        smtp.ehlo()
-        smtp.starttls()
-        smtp.login(username, password)
-        smtp.send_message(message)
+    payload = {
+        "from": f"{sender_name} <{sender}>" if sender_name else sender,
+        "to": [recipient],
+        "subject": subject,
+        "text": body_text,
+    }
+
+    request = urllib.request.Request(
+        RESEND_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            if response.status not in (200, 201):
+                raise RuntimeError(
+                    f"Resend API error: unexpected status {response.status}"
+                )
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = exc.read().decode("utf-8", "replace")[:300]
+        except Exception:
+            detail = ""
+        raise RuntimeError(
+            f"Resend API error {exc.code}: {detail or exc.reason}"
+        )
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Resend request failed: {exc.reason}")

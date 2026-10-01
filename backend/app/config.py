@@ -56,12 +56,10 @@ class Config:
         if origin.strip()
     ]
 
-    # Password-reset email (SMTP). Sending is skipped with a clear log
-    # error when these are not configured, so the feature degrades safely.
-    MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-    MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
-    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
-    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+    # Password-reset email (Resend HTTP API). Sending is skipped with a
+    # clear log error when the key is not configured, so the feature
+    # degrades safely. MAIL_FROM must use a domain verified in Resend.
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
     MAIL_FROM = os.environ.get("MAIL_FROM", "")
     MAIL_FROM_NAME = os.environ.get("MAIL_FROM_NAME", "Faculty Evaluation System")
 

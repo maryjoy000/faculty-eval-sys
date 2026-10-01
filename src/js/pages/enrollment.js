@@ -226,7 +226,7 @@ function buildSectionYearOptions() {
   const currentYear = new Date().getFullYear();
   const options = [];
 
-  for (let start = currentYear - 10; start <= currentYear + 10; start++) {
+  for (let start = currentYear; start <= currentYear + 10; start++) {
     options.push(`${start}-${start + 1}`);
   }
 
