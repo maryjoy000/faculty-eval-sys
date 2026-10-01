@@ -715,6 +715,32 @@ function attachWeightingFormListener() {
 
 let termsCache = [];
 
+// School-year picker options (YYYY-YYYY). Same rule as historical
+// import: second year = first year + 1, so typos can no longer
+// create junk years.
+function buildSchoolYearOptions() {
+  const currentYear = new Date().getFullYear();
+  const options = [];
+
+  for (let start = currentYear - 5; start <= currentYear + 5; start++) {
+    options.push(`${start}-${start + 1}`);
+  }
+
+  return options;
+}
+
+function populateTermYearOptions() {
+  const select = document.getElementById("term-year-input");
+  if (!select) return;
+
+  buildSchoolYearOptions().forEach((year) => {
+    const option = document.createElement("option");
+    option.value = year;
+    option.textContent = year;
+    select.appendChild(option);
+  });
+}
+
 // Keeps the Academic Year display label (shown on evaluation forms and
 // printed reports) in sync with the open term, so there is a single
 // source of truth. A sync failure never blocks the term itself.
@@ -758,6 +784,16 @@ function termStatusBadge(status) {
   return `<span class="text-amber-600 font-medium">Draft</span>`;
 }
 
+function getTermStatusFilter() {
+  return document.getElementById("term-status-filter")?.value || "all";
+}
+
+function attachTermStatusFilterListener() {
+  document
+    .getElementById("term-status-filter")
+    ?.addEventListener("change", renderTermsTable);
+}
+
 function renderTermsTable() {
   const tableBody = document.getElementById("terms-table-body");
   if (!tableBody) return;
@@ -773,7 +809,23 @@ function renderTermsTable() {
     return;
   }
 
-  tableBody.innerHTML = termsCache
+  const statusFilter = getTermStatusFilter();
+  const visibleTerms = termsCache.filter(
+    (term) => statusFilter === "all" || term.status === statusFilter
+  );
+
+  if (!visibleTerms.length) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="py-6 text-center text-gray-400">
+          No terms with this status.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tableBody.innerHTML = visibleTerms
     .map((term) => {
       let actionHtml = "";
       const archiveBtn = `<button type="button" class="archive-term-btn text-amber-600 hover:underline" data-term-id="${term.id}">Archive</button>`;
@@ -940,6 +992,7 @@ async function initializeSystemManagement() {
   mountPageContent();
 
   attachTabListeners();
+  populateTermYearOptions();
 
   attachEvaluationPeriodFormListener();
   attachAnnouncementFormListener();
@@ -949,6 +1002,7 @@ async function initializeSystemManagement() {
 
   attachWeightingFormListener();
   attachTermFormListener();
+  attachTermStatusFilterListener();
 
   await Promise.all([
     loadEvaluationPeriodForm(),

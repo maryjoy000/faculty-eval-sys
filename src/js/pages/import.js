@@ -56,7 +56,12 @@ function readOptions() {
 }
 
 function fingerprintRows() {
-  return JSON.stringify({ rows: parsedRows, options: readOptions(), file: parsedFileName });
+  return JSON.stringify({
+    rows: parsedRows,
+    options: readOptions(),
+    file: parsedFileName,
+    target: getTargetTermId(),
+  });
 }
 
 function setStepPill(id, state) {
@@ -112,6 +117,10 @@ const TEMPLATE_EXAMPLES = {
 };
 
 async function downloadTemplate(typeCode) {
+  if (typeCode === "all") {
+    downloadCombinedTemplate();
+    return;
+  }
   const status = document.getElementById("template-status");
   try {
     status.textContent = `Building ${typeCode} template...`;
@@ -143,6 +152,58 @@ async function downloadTemplate(typeCode) {
     XLSX.writeFile(workbook, `template_${typeCode}_2025-2026.xlsx`);
     templateDownloaded = true;
     status.textContent = `${typeCode}: downloaded (${codes.length} rating columns). Now fill it in Excel.`;
+    refreshSteps();
+  } catch (error) {
+    status.textContent = "";
+    showError(error);
+  }
+}
+
+// One file with all four types: union of every question column.
+// Each row fills only its own type's ratings; other cells stay blank.
+async function downloadCombinedTemplate() {
+  const status = document.getElementById("template-status");
+  const order = ["student", "peerToPeer", "hrEvaluation", "classroomObservation"];
+  try {
+    status.textContent = "Building combined template...";
+    const allParts = await Promise.all(
+      order.map((code) => apiGet(`/evaluation-criteria/${code}`))
+    );
+    const codesByType = {};
+    allParts.forEach((parts, i) => {
+      const codes = [];
+      parts.forEach((part) => {
+        (part.questions || []).forEach((q) => {
+          if (q && q.id) codes.push(q.id);
+        });
+      });
+      codesByType[order[i]] = codes;
+    });
+    const union = order.reduce((acc, code) => acc.concat(codesByType[code]), []);
+    if (!union.length) {
+      showToast("No active questions found.", "warning");
+      status.textContent = "";
+      return;
+    }
+    const header = ["faculty_name", "evaluation_type", "school_year", "semester"]
+      .concat(union)
+      .concat(["comments", "submitted_at", "overall_average"]);
+    const rows = [header];
+    order.forEach((typeCode) => {
+      const example = TEMPLATE_EXAMPLES[typeCode];
+      const ratings = union.map((code) =>
+        codesByType[typeCode].indexOf(code) !== -1 ? 4 : "");
+      rows.push([example.faculty, typeCode, "2025-2026", "1st"]
+        .concat(ratings, [example.comments, "2025-10-15", ""]));
+    });
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Historical");
+    XLSX.writeFile(workbook, "template_combined_2025-2026.xlsx");
+    templateDownloaded = true;
+    status.textContent =
+      `Combined template downloaded (${union.length} rating columns). ` +
+      "Each row fills only its own type's ratings - leave the rest blank.";
     refreshSteps();
   } catch (error) {
     status.textContent = "";
@@ -250,7 +311,9 @@ function renderSummary(summary, mode) {
     }
   } else {
     title.textContent = "Check Result (nothing saved yet)";
+    const dest = getTargetTermLabel();
     summaryEl.innerHTML =
+      (dest ? `Destination: <strong>${escapeHtml(dest)}</strong><br>` : "") +
       `<strong>${summary.inserted}</strong> row(s) ready` +
       (summary.skipped ? `, <strong>${summary.skipped}</strong> would be skipped` : "") +
       (errors.length ? `, <strong>${errors.length}</strong> need fixing` : "") +
@@ -329,6 +392,7 @@ async function checkNow() {
       rows: parsedRows,
       options: readOptions(),
       filename: parsedFileName,
+      target_term_id: getTargetTermId(),
     });
     renderSummary(summary, "validate");
   } catch (error) {
@@ -351,6 +415,7 @@ async function commitNow() {
           rows: parsedRows,
           options: readOptions(),
           filename: parsedFileName,
+          target_term_id: getTargetTermId(),
         });
         lastValidatedKey = "";
         renderSummary(summary, "commit");
@@ -361,6 +426,89 @@ async function commitNow() {
       }
     },
   });
+}
+
+// ============================================
+// TARGET TERM PICKER (single destination)
+// ============================================
+
+function getTargetTermId() {
+  const select = document.getElementById("hist-target-term");
+  if (!select || !select.value) return null;
+  const id = Number(select.value);
+  return Number.isInteger(id) ? id : null;
+}
+
+function getTargetTermLabel() {
+  const select = document.getElementById("hist-target-term");
+  if (!select || !select.value) return "";
+  const option = select.options[select.selectedIndex];
+  return option ? option.textContent.trim() : "";
+}
+
+async function loadTargetTerms() {
+  const importSelect = document.getElementById("hist-target-term");
+  const exportSelect = document.getElementById("hist-export-term");
+  try {
+    const terms = await apiGet("/school-terms");
+    (terms || []).forEach((term) => {
+      const label = `${term.school_year} ${term.semester} Semester (${term.status})` +
+        (term.status === "open" ? " (current)" : "");
+      const importOption = document.createElement("option");
+      importOption.value = term.id;
+      importOption.textContent = label;
+      importSelect.appendChild(importOption);
+      const exportOption = document.createElement("option");
+      exportOption.value = term.id;
+      exportOption.textContent = label;
+      exportSelect.appendChild(exportOption);
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// ============================================
+// EXPORT (one term -> spreadsheet)
+// ============================================
+
+async function downloadExport() {
+  const select = document.getElementById("hist-export-term");
+  const status = document.getElementById("hist-export-status");
+  if (!checkXlsx()) return;
+  if (!select || !select.value) {
+    showToast("Select a school term first.", "warning");
+    return;
+  }
+  const btn = document.getElementById("hist-export-btn");
+  btn.disabled = true;
+  status.textContent = "Preparing download...";
+  try {
+    const payload = await apiGet(`/imports/historical/export?term_id=${select.value}`);
+    const rows = payload.rows || [];
+    if (!rows.length) {
+      status.textContent = "";
+      showToast("No evaluations in this term yet.", "warning");
+      return;
+    }
+    const headers = payload.headers || Object.keys(rows[0]);
+    const data = [headers].concat(
+      rows.map((row) => headers.map((h) => (row[h] === null || row[h] === undefined ? "" : row[h])))
+    );
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Historical");
+    const term = payload.term || {};
+    const safeYear = String(term.school_year || "term").replace(/[^0-9-]/g, "");
+    const safeSem = String(term.semester || "").replace(/[^0-9a-z]/gi, "");
+    XLSX.writeFile(workbook, `historical_${safeYear}_${safeSem}.xlsx`);
+    status.textContent = `Downloaded ${rows.length} evaluation(s).`;
+  } catch (error) {
+    status.textContent = "";
+    showError(error);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ============================================
@@ -413,6 +561,7 @@ function attachImportListeners() {
   });
 
   document.getElementById("hist-commit-btn").addEventListener("click", commitNow);
+  document.getElementById("hist-export-btn").addEventListener("click", downloadExport);
 
   document.querySelectorAll("[data-template-type]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -424,13 +573,15 @@ function attachImportListeners() {
   ["opt-create-terms", "opt-create-faculty", "opt-sentiment", "opt-skip-dupes"].forEach((id) => {
     document.getElementById(id).addEventListener("change", markPayloadDirty);
   });
+
+  document.getElementById("hist-target-term").addEventListener("change", markPayloadDirty);
 }
 
 async function initializeHistoricalImport() {
   mountPageContent();
   attachImportListeners();
   refreshSteps();
-  await loadFacultyReference();
+  await Promise.all([loadFacultyReference(), loadTargetTerms()]);
 }
 
 initializeHistoricalImport();

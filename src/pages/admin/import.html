@@ -40,6 +40,7 @@
         <button type="button" class="btn-secondary text-sm" data-template-type="peerToPeer">Peer-to-Peer</button>
         <button type="button" class="btn-secondary text-sm" data-template-type="hrEvaluation">HR</button>
         <button type="button" class="btn-secondary text-sm" data-template-type="classroomObservation">Classroom Observation</button>
+        <button type="button" class="btn-primary text-sm" data-template-type="all">All Types (one file)</button>
       </div>
       <p id="template-status" class="text-xs text-gray-400 mt-3"></p>
     </div>
@@ -99,6 +100,15 @@
       <h2 class="font-semibold text-gray-800 mb-1">Step 3 - Upload and Check</h2>
       <p class="text-sm text-gray-500 mb-4">Your file is checked first - nothing is saved until you confirm.</p>
 
+      <div class="mb-4">
+        <label for="hist-target-term" class="block text-sm font-medium text-gray-700 mb-1">Import into term</label>
+        <select id="hist-target-term"
+          class="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+          <option value="">Follow the file (per-row school year and semester)</option>
+        </select>
+        <p class="text-xs text-gray-400 mt-1">Pick one term to force all rows into it - the file's school_year/semester columns are then ignored and may be blank.</p>
+      </div>
+
       <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <input type="file" id="hist-import-input" accept=".xlsx,.xls,.csv" class="hidden">
         <button type="button" id="hist-import-btn" class="btn-primary text-sm">Import</button>
@@ -156,6 +166,23 @@
           <tbody id="hist-preview-body"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <h2 class="font-semibold text-gray-800 mb-1">Export historical data</h2>
+      <p class="text-sm text-gray-500 mb-4">Download one term's evaluations as a spreadsheet. Same columns as the import templates, so you can edit and re-import the file as-is.</p>
+      <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div>
+          <label for="hist-export-term" class="block text-sm font-medium text-gray-700 mb-1">School term</label>
+          <select id="hist-export-term"
+            class="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+            <option value="">Select a term</option>
+          </select>
+        </div>
+        <button type="button" id="hist-export-btn" class="btn-secondary text-sm">Download</button>
+      </div>
+      <p id="hist-export-status" class="text-xs text-gray-400 mt-2"></p>
     </div>
 
     <!-- Faculty reference -->

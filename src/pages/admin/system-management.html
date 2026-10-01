@@ -39,8 +39,10 @@
               readable through the term filter. Opening a term also updates the Academic Year label shown on evaluation forms and printed reports. Draft and closed terms can be archived; archived terms can be reopened, or permanently deleted once they hold no evaluations.</p>
 
           <form id="term-form" class="flex flex-col sm:flex-row gap-3 mb-4 max-w-md">
-              <input type="text" id="term-year-input" placeholder="e.g. 2026-2027" required
-                  class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+                <select id="term-year-input" required
+                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+                    <option value="" disabled selected>Select school year</option>
+                </select>
               <select id="term-semester-input"
                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
                   <option value="1st">1st Term</option>
@@ -49,6 +51,17 @@
               </select>
               <button type="submit" class="btn-primary whitespace-nowrap">+ New Term</button>
           </form>
+
+          <div class="flex flex-col sm:flex-row gap-3 mb-4 max-w-md">
+              <select id="term-status-filter"
+                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent">
+                  <option value="all">All Statuses</option>
+                  <option value="draft">Draft</option>
+                  <option value="open">Open</option>
+                  <option value="closed">Closed</option>
+                  <option value="archived">Archived</option>
+              </select>
+          </div>
 
           <div class="overflow-x-auto">
               <table class="w-full text-left text-sm">

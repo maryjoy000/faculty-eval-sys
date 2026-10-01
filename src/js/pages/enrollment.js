@@ -194,6 +194,8 @@ function openSectionModal(sectionId) {
   const form = document.getElementById("section-form");
   form.reset();
 
+  populateSectionYearOptions();
+
   document.getElementById("section-form-id").value = "";
   document.getElementById("section-modal-title").textContent = "Add Section";
   document.getElementById("section-active-input").checked = true;
@@ -206,7 +208,7 @@ function openSectionModal(sectionId) {
     document.getElementById("section-modal-title").textContent = "Edit Section";
     document.getElementById("section-grade-input").value = section.grade_level;
     document.getElementById("section-name-input").value = section.section_name;
-    document.getElementById("section-year-input").value = section.school_year || "";
+    setSectionYearValue(section.school_year);
     document.getElementById("section-active-input").checked = Boolean(section.is_active);
   }
 
@@ -215,6 +217,48 @@ function openSectionModal(sectionId) {
 
 function closeSectionModal() {
   document.getElementById("section-modal").classList.add("hidden");
+}
+
+// School-year picker options (YYYY-YYYY). Same rule as historical
+// import: second year = first year + 1, so typos can no longer
+// create junk years.
+function buildSectionYearOptions() {
+  const currentYear = new Date().getFullYear();
+  const options = [];
+
+  for (let start = currentYear - 5; start <= currentYear + 5; start++) {
+    options.push(`${start}-${start + 1}`);
+  }
+
+  return options;
+}
+
+function populateSectionYearOptions() {
+  const select = document.getElementById("section-year-input");
+  if (!select) return;
+
+  select.innerHTML = `<option value="">No school year</option>` +
+    buildSectionYearOptions()
+      .map((year) => `<option value="${year}">${year}</option>`)
+      .join("");
+}
+
+// Legacy plain-text years (saved before the picker existed) are kept as
+// an extra option so editing a section never wipes its stored value.
+function setSectionYearValue(value) {
+  const select = document.getElementById("section-year-input");
+  if (!select) return;
+
+  const clean = String(value || "");
+
+  if (clean && ![...select.options].some((option) => option.value === clean)) {
+    const extra = document.createElement("option");
+    extra.value = clean;
+    extra.textContent = clean;
+    select.appendChild(extra);
+  }
+
+  select.value = clean;
 }
 
 function attachSectionModalListeners() {

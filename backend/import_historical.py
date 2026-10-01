@@ -393,7 +393,8 @@ def _normalize_input_row(row):
 
 def process_rows(rows, source_label="upload", dry_run=False, create_terms=True,
                  create_missing_faculty=False, no_sentiment=False,
-                 skip_exact_duplicates=False, verbose=True, actor_user_id=None):
+                 skip_exact_duplicates=False, verbose=True, actor_user_id=None,
+                 target_term_id=None):
     """Validate + insert already-parsed rows. Returns a summary dict.
 
     `rows` is a list of dicts (any header casing; values may be numbers).
@@ -402,6 +403,10 @@ def process_rows(rows, source_label="upload", dry_run=False, create_terms=True,
     only when verbose=True; warnings are always collected in the summary.
     `actor_user_id` attributes the audit entry (web UI passes the admin's
     id; the CLI leaves it None = system import).
+    `target_term_id` forces every row into one existing term (the UI term
+    picker / --target-term-id); per-row school_year/semester columns are
+    then ignored and may be blank. When None, each row's own columns decide
+    (auto-creating missing terms as drafts when create_terms is set).
     """
     from app.extensions import db
     from app.models.evaluation import Evaluation, EvaluationResponse
@@ -417,6 +422,18 @@ def process_rows(rows, source_label="upload", dry_run=False, create_terms=True,
             print("No data rows found — nothing to do.")
         return {"inserted": 0, "skipped": 0, "terms_created": 0,
                 "faculty_created": 0, "errors": [], "warnings": []}
+
+    # Single-destination mode: every row lands in this term; the per-row
+    # school_year/semester columns are ignored (callers pre-validated it).
+    override_term = None
+    if target_term_id is not None:
+        from app.models.school_term import SchoolTerm
+        override_term = SchoolTerm.query.get(int(target_term_id))
+        if override_term is None:
+            raise RuntimeError(
+                f"Target school term #{target_term_id} not found. "
+                "Create it in System Management first."
+            )
 
     lookups = _build_lookups()
     types_by_code = lookups["types_by_code"]
@@ -464,17 +481,23 @@ def process_rows(rows, source_label="upload", dry_run=False, create_terms=True,
                     f"evaluation_type '{type_raw}' must be one of "
                     "student | peerToPeer | hrEvaluation | classroomObservation"
                 )
-            school_year = validate_school_year(year_raw)
-            if school_year is None:
-                raise ValueError(
-                    f"school_year '{year_raw}' must look like 2025-2026 "
-                    "(second year = first year + 1)"
-                )
-            semester = normalize_semester(sem_raw)
-            if semester is None:
-                raise ValueError(
-                    f"semester '{sem_raw}' must be 1st, 2nd, or 3rd"
-                )
+            if override_term is not None:
+                # Destination picked up front (UI term picker) — file
+                # columns are ignored and may be blank.
+                school_year = override_term.school_year
+                semester = override_term.semester
+            else:
+                school_year = validate_school_year(year_raw)
+                if school_year is None:
+                    raise ValueError(
+                        f"school_year '{year_raw}' must look like 2025-2026 "
+                        "(second year = first year + 1)"
+                    )
+                semester = normalize_semester(sem_raw)
+                if semester is None:
+                    raise ValueError(
+                        f"semester '{sem_raw}' must be 1st, 2nd, or 3rd"
+                    )
 
             # --- Faculty ---
             faculty_key = normalize_name(faculty_raw)
@@ -498,9 +521,12 @@ def process_rows(rows, source_label="upload", dry_run=False, create_terms=True,
                 faculty_created += 1
 
             # --- Term (never auto-opened: historical rows attach by id) ---
-            term, was_created, term_error = _get_or_create_term(
-                school_year, semester, terms_by_key, create_terms
-            )
+            if override_term is not None:
+                term, was_created, term_error = override_term, False, None
+            else:
+                term, was_created, term_error = _get_or_create_term(
+                    school_year, semester, terms_by_key, create_terms
+                )
             if term_error:
                 raise ValueError(term_error)
             if was_created:
@@ -694,7 +720,7 @@ def process_rows(rows, source_label="upload", dry_run=False, create_terms=True,
 
 def run_import(path, dry_run=False, create_terms=True,
                create_missing_faculty=False, no_sentiment=False,
-               skip_exact_duplicates=False):
+               skip_exact_duplicates=False, target_term_id=None):
     """Validate + insert every row from a CSV/XLSX file.
 
     Thin CLI wrapper around process_rows (single source of truth shared
@@ -709,6 +735,7 @@ def run_import(path, dry_run=False, create_terms=True,
         create_missing_faculty=create_missing_faculty,
         no_sentiment=no_sentiment,
         skip_exact_duplicates=skip_exact_duplicates,
+        target_term_id=target_term_id,
         verbose=True,
     )
 
@@ -816,6 +843,9 @@ def main(argv=None):
                         help="skip XLM-R sentiment (stores NULL, much faster)")
     parser.add_argument("--skip-exact-duplicates", action="store_true",
                         help="skip rows identical to an existing evaluation")
+    parser.add_argument("--target-term-id", type=int, default=None,
+                        help="force every row into this school term id "
+                             "(per-row school_year/semester ignored)")
     parser.add_argument("--generate-templates",
                         help="write per-type XLSX templates into DIR and exit")
     args = parser.parse_args(argv)
@@ -837,6 +867,7 @@ def main(argv=None):
             create_missing_faculty=args.create_missing_faculty,
             no_sentiment=args.no_sentiment,
             skip_exact_duplicates=args.skip_exact_duplicates,
+            target_term_id=args.target_term_id,
         )
         return 1 if summary["errors"] else 0
 

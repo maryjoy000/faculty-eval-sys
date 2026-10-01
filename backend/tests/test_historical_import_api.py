@@ -224,6 +224,148 @@ def test_rbac_hr_forbidden_and_anonymous_unauthorized(api_app):
                      json={"rows": _rows()}).status_code == 401
 
 
+def test_target_term_override_ignores_file_columns(api_app):
+    from app.models.evaluation import Evaluation
+    from app.models.school_term import SchoolTerm
+
+    with api_app.app_context():
+        _seed_api_db()
+        term = SchoolTerm(school_year="2025-2026", semester="1st", status="draft")
+        db.session.add(term)
+        db.session.commit()
+        term_id = term.id
+
+    client = api_app.test_client()
+    _login(client, "admin-t", "Admin123!")
+
+    # school_year/semester left blank — the picked term decides.
+    rows = [{
+        "faculty_name": "Cruz, Ana",
+        "evaluation_type": "student",
+        "school_year": "",
+        "semester": "",
+        "q1": 5, "q2": 5,
+        "comments": "Override",
+        "submitted_at": "2025-09-01",
+    }]
+    resp = client.post("/api/imports/historical/commit",
+                       json={"rows": rows, "target_term_id": term_id})
+    assert resp.status_code == 200
+    assert resp.get_json()["inserted"] == 1
+
+    with api_app.app_context():
+        evaluation = Evaluation.query.one()
+        assert evaluation.term_id == term_id
+        assert SchoolTerm.query.count() == 1  # no auto-created terms
+
+
+def test_target_term_unknown_id_is_404(api_app):
+    with api_app.app_context():
+        _seed_api_db()
+    client = api_app.test_client()
+    _login(client, "admin-t", "Admin123!")
+
+    resp = client.post("/api/imports/historical/validate",
+                       json={"rows": _rows(), "target_term_id": 9999})
+    assert resp.status_code == 404
+
+
+def test_export_returns_import_compatible_rows(api_app):
+    from datetime import datetime
+    from app.models.criteria import EvaluationQuestion
+    from app.models.evaluation import Evaluation, EvaluationResponse
+    from app.models.evaluation_type import EvaluationType
+    from app.models.faculty import Faculty
+    from app.models.school_term import SchoolTerm
+
+    with api_app.app_context():
+        _seed_api_db()
+        term = SchoolTerm(school_year="2025-2026", semester="1st", status="closed")
+        db.session.add(term)
+        db.session.flush()
+        faculty = Faculty.query.filter_by(name="Cruz, Ana").one()
+        student_type = EvaluationType.query.filter_by(code="student").one()
+        questions = EvaluationQuestion.query.order_by(EvaluationQuestion.display_order).all()
+
+        detailed = Evaluation(
+            evaluation_type_id=student_type.id,
+            faculty_id=faculty.id,
+            term_id=term.id,
+            submitted_at=datetime(2025, 10, 15, 9, 30, 0),
+            overall_average=4.5,
+            overall_rating_pct=90.0,
+            comments="Mahusay",
+        )
+        db.session.add(detailed)
+        db.session.flush()
+        for question, rating in zip(questions, [4, 5]):
+            db.session.add(EvaluationResponse(
+                evaluation_id=detailed.id,
+                question_id=question.id,
+                rating_value=rating,
+            ))
+        summary_only = Evaluation(
+            evaluation_type_id=student_type.id,
+            faculty_id=faculty.id,
+            term_id=term.id,
+            submitted_at=datetime(2025, 11, 1, 10, 0, 0),
+            overall_average=4.2,
+            overall_rating_pct=84.0,
+            comments=None,
+        )
+        db.session.add(summary_only)
+        db.session.commit()
+        term_id = term.id
+
+    client = api_app.test_client()
+    _login(client, "admin-t", "Admin123!")
+
+    resp = client.get(f"/api/imports/historical/export?term_id={term_id}")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["term"]["school_year"] == "2025-2026"
+    assert body["count"] == 2
+
+    headers = body["headers"]
+    for required in ("faculty_name", "evaluation_type", "school_year", "semester",
+                     "q1", "q2", "comments", "submitted_at", "overall_average"):
+        assert required in headers
+
+    first, second = body["rows"]
+    assert first["faculty_name"] == "Cruz, Ana"
+    assert first["evaluation_type"] == "student"
+    assert first["school_year"] == "2025-2026"
+    assert first["semester"] == "1st"
+    assert first["q1"] == 4 and first["q2"] == 5
+    assert first["comments"] == "Mahusay"
+    assert first["submitted_at"] == "2025-10-15 09:30:00"
+    assert first["overall_average"] == ""  # detailed: recomputed on re-import
+
+    assert second["q1"] == "" and second["q2"] == ""
+    assert second["overall_average"] == 4.2  # summary: preserved
+
+
+def test_export_guards(api_app):
+    with api_app.app_context():
+        _seed_api_db()
+    client = api_app.test_client()
+    _login(client, "admin-t", "Admin123!")
+
+    assert client.get("/api/imports/historical/export").status_code == 400
+    assert client.get("/api/imports/historical/export?term_id=abc").status_code == 400
+    assert client.get("/api/imports/historical/export?term_id=9999").status_code == 404
+
+
+def test_export_rbac(api_app):
+    with api_app.app_context():
+        _seed_api_db()
+    hr_client = api_app.test_client()
+    _login(hr_client, "hr-t", "Hr123456!")
+    assert hr_client.get("/api/imports/historical/export?term_id=1").status_code == 403
+    anon = api_app.test_client()
+    assert anon.get("/api/imports/historical/export?term_id=1").status_code == 401
+
+
 def test_payload_guards(api_app):
     with api_app.app_context():
         _seed_api_db()
