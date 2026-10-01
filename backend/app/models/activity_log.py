@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_iso
 
 
 class ActivityLog(db.Model):
@@ -20,10 +21,22 @@ class ActivityLog(db.Model):
     student = db.relationship("Student")
 
     def to_dict(self):
+        actor_name = None
+        actor_role = None
+
+        if self.user is not None:
+            actor_name = self.user.name
+            actor_role = self.user.role
+        elif self.student is not None:
+            actor_name = self.student.name
+            actor_role = "student"
+
         return {
             "id": self.id,
             "description": self.description,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": utc_iso(self.created_at),
+            "actor_name": actor_name,
+            "actor_role": actor_role,
         }
 
     def __repr__(self):

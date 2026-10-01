@@ -103,11 +103,30 @@ async function attachNotificationPanelListeners() {
   renderNotifications();
 }
 
+// Prefer the logged-in user's first name for the greeting; fall back to
+// "Faculty" when the session carries no name.
+function getFacultyHeaderFirstName() {
+  try {
+    const sessionName =
+      typeof currentSession !== "undefined" &&
+      currentSession &&
+      currentSession.name
+        ? String(currentSession.name)
+        : "";
+    const firstName = sessionName.trim().split(/\s+/)[0];
+    if (firstName) return firstName.replace(/[<>&"]/g, "");
+  } catch (error) {
+    // Fall through to the label below.
+  }
+  return "Faculty";
+}
+
 function renderFacultyHeader() {
   const placeholder = document.getElementById("app-faculty-header");
   if (!placeholder) return;
 
   const showLogout = placeholder.dataset.showLogout === "true";
+  const greeting = getFacultyHeaderFirstName();
 
   placeholder.innerHTML = `
     <header class="bg-brand text-white">
@@ -146,7 +165,7 @@ function renderFacultyHeader() {
             </div>
           </div>
 
-          <span class="text-sm hidden sm:inline">Hello, Faculty!</span>
+          <span class="text-sm hidden sm:inline">Hello, ${greeting}!</span>
           <a href="faculty-profile.html" class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>

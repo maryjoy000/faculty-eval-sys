@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_iso
 
 
 class FacultyReport(db.Model):
@@ -24,9 +25,9 @@ class FacultyReport(db.Model):
         return {
             "faculty_id": self.faculty_id,
             "status": self.status,
-            "released_at": self.released_at.isoformat() if self.released_at else None,
+            "released_at": utc_iso(self.released_at),
             "released_by": self.released_by_user.name if self.released_by_user else None,
-            "viewed_at": self.viewed_at.isoformat() if self.viewed_at else None,
+            "viewed_at": utc_iso(self.viewed_at),
         }
 
     def __repr__(self):

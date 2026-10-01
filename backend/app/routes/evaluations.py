@@ -19,6 +19,7 @@ from ..utils.sentiment import analyze_sentiment
 from ..utils.evaluation_rules import sanitize_comments, validate_required_comment
 from ..models.evaluation_period import EvaluationPeriod
 from ..utils.terms import resolve_term_param, resolve_submission_term
+from ..utils.time import utc_iso
 
 evaluations_bp = Blueprint("evaluations", __name__)
 
@@ -137,7 +138,7 @@ def get_student_evaluation_status(faculty_id):
         "rating": evaluation.overall_average or 0,
         "average": evaluation.overall_average,
         "submittedAt": (
-            evaluation.submitted_at.isoformat()
+            utc_iso(evaluation.submitted_at)
             if evaluation.submitted_at
             else None
         ),
@@ -389,7 +390,7 @@ def get_dashboard_recent_evaluations():
             "student_lrn": student.lrn if student else "Unknown LRN",
             "overall_average": evaluation.overall_average,
             "submitted_at": (
-                evaluation.submitted_at.isoformat()
+                utc_iso(evaluation.submitted_at)
                 if evaluation.submitted_at else None
             ),
         })
@@ -469,7 +470,7 @@ def get_dashboard_classroom_observations():
                 "overall_average": evaluation.overall_average,
                 "overall_rating_pct": evaluation.overall_rating_pct,
                 "submitted_at": (
-                    evaluation.submitted_at.isoformat()
+                    utc_iso(evaluation.submitted_at)
                     if evaluation.submitted_at else None
                 ),
             })
@@ -686,7 +687,7 @@ def get_peer_evaluation_status():
             "overall_rating_pct": evaluation.overall_rating_pct,
             "comments": evaluation.comments,
             "submitted_at": (
-                evaluation.submitted_at.isoformat()
+                utc_iso(evaluation.submitted_at)
                 if evaluation.submitted_at else None
             ),
         }
@@ -696,6 +697,12 @@ def get_peer_evaluation_status():
 @evaluations_bp.route("/hr-dashboard", methods=["GET"])
 @roles_required("hr")
 def get_hr_dashboard():
+    # Term-scoped like the admin dashboard: for a closed term this reads
+    # as "that term's HR submissions measured against today's roster".
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
     hr_type = EvaluationType.query.filter_by(code="hrEvaluation").first()
 
     if not hr_type:
@@ -708,11 +715,15 @@ def get_hr_dashboard():
         .all()
     )
 
-    evaluations = (
+    evaluations_query = (
         Evaluation.query
         .filter_by(evaluation_type_id=hr_type.id)
-        .all()
     )
+    if term_id is not None:
+        evaluations_query = evaluations_query.filter(
+            Evaluation.term_id == term_id
+        )
+    evaluations = evaluations_query.all()
 
     evaluation_by_faculty = {
         evaluation.faculty_id: evaluation
@@ -731,7 +742,7 @@ def get_hr_dashboard():
             "rating": evaluation.overall_average if evaluation else None,
             "rating_pct": evaluation.overall_rating_pct if evaluation else None,
             "submitted_at": (
-                evaluation.submitted_at.isoformat()
+                utc_iso(evaluation.submitted_at)
                 if evaluation and evaluation.submitted_at
                 else None
             ),
@@ -825,7 +836,7 @@ def get_peer_evaluation_result(faculty_id):
         "overall_rating_pct": evaluation.overall_rating_pct,
         "comments": evaluation.comments,
         "submitted_at": (
-            evaluation.submitted_at.isoformat()
+            utc_iso(evaluation.submitted_at)
             if evaluation.submitted_at
             else None
         ),

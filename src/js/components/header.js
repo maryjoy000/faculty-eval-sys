@@ -11,11 +11,29 @@
 // data-greeting   : name shown in "Hello, {greeting}!" (e.g. "Student")
 // data-show-logout: "true" to show a Logout button, omit/false to hide it
 
+// Prefer the logged-in user's first name for the greeting; fall back to
+// the placeholder label when the session carries no name.
+function getHeaderFirstName(fallback) {
+  try {
+    const sessionName =
+      typeof currentSession !== "undefined" &&
+      currentSession &&
+      currentSession.name
+        ? String(currentSession.name)
+        : "";
+    const firstName = sessionName.trim().split(/\s+/)[0];
+    if (firstName) return firstName.replace(/[<>&"]/g, "");
+  } catch (error) {
+    // Fall through to the label below.
+  }
+  return fallback;
+}
+
 function renderStudentHeader() {
   const placeholder = document.getElementById("app-header");
   if (!placeholder) return; // No header placeholder on this page — do nothing
 
-  const greeting = placeholder.dataset.greeting || "Student";
+  const greeting = getHeaderFirstName(placeholder.dataset.greeting || "Student");
   const showLogout = placeholder.dataset.showLogout === "true";
 
   placeholder.innerHTML = `

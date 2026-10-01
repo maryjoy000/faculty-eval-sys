@@ -239,6 +239,27 @@ function saveCriteria(type, parts) {
   localStorage.setItem(storageKey, JSON.stringify(parts));
 }
 
+// --- Refresh the local criteria cache from the backend instrument ---
+// Blank report previews (buildBlankCategoryScores) read getCriteria(),
+// so without this they show stale bundled text (including old
+// "[Placeholder]" questions) instead of what the admin configured in
+// the Evaluation Criteria module. Best-effort: failures keep the
+// existing cache/defaults.
+async function refreshLiveCriteriaInstruments() {
+  const types = ["student", "classroomObservation", "peerToPeer", "hrEvaluation"];
+
+  await Promise.all(types.map(async (type) => {
+    try {
+      const parts = await apiGet(`/evaluation-criteria/${type}`);
+      if (Array.isArray(parts) && parts.length) {
+        saveCriteria(type, parts);
+      }
+    } catch (error) {
+      console.error(`Failed to refresh ${type} criteria:`, error);
+    }
+  }));
+}
+
 // ============================================
 // Rating Scale (per evaluation type, independently editable)
 // ============================================

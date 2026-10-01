@@ -9,6 +9,14 @@ from flask import Blueprint, jsonify, request
 activity_logs_bp = Blueprint("activity_logs", __name__)
 
 
+def get_list_limit():
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (TypeError, ValueError):
+        return 20
+    return max(1, min(limit, 200))
+
+
 @activity_logs_bp.route("", methods=["GET"])
 @login_required
 def list_activity():
@@ -20,7 +28,7 @@ def list_activity():
     logs = (
         ActivityLog.query
         .order_by(ActivityLog.created_at.desc())
-        .limit(20)
+        .limit(get_list_limit())
         .all()
     )
 

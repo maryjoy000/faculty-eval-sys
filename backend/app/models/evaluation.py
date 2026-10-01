@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from ..extensions import db
+from ..utils.time import utc_iso
 
 
 class Evaluation(db.Model):
@@ -42,7 +43,7 @@ class Evaluation(db.Model):
             "evaluation_type": self.evaluation_type.code,
             "faculty_id": self.faculty_id,
             "term_id": self.term_id,
-            "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
+            "submitted_at": utc_iso(self.submitted_at),
             "overall_average": self.overall_average,
             "overall_rating_pct": self.overall_rating_pct,
             "comments": self.comments,

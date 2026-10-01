@@ -371,6 +371,7 @@ async function showReportDetail(faculty) {
   `;
 
   try {
+    await refreshLiveCriteriaInstruments();
     await loadReportDetails(faculty.id);
 
     attachReportTabListeners();

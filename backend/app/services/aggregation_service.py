@@ -6,6 +6,7 @@ from ..models.evaluation import Evaluation
 from ..models.evaluation_type import EvaluationType
 from ..models.weighting import EvaluationWeighting
 from ..models.criteria import EvaluationQuestion, EvaluationCriteria
+from ..utils.time import utc_iso
 
 
 def compute_effective_weights(weighting):
@@ -391,7 +392,7 @@ def get_student_evaluation_breakdown(faculty_id, term_id=None):
                 "text": evaluation.comments,
                 "sentiment": sentiment,
                 "submitted_at": (
-                    evaluation.submitted_at.isoformat()
+                    utc_iso(evaluation.submitted_at)
                     if evaluation.submitted_at
                     else None
                 ),
@@ -554,7 +555,7 @@ def get_peer_evaluation_breakdown(faculty_id, term_id=None):
                     else None
                 ),
                 "submitted_at": (
-                    evaluation.submitted_at.isoformat()
+                    utc_iso(evaluation.submitted_at)
                     if evaluation.submitted_at
                     else None
                 )
@@ -681,7 +682,7 @@ def get_hr_evaluation_breakdown(faculty_id, term_id=None):
                     else None
                 ),
                 "submitted_at": (
-                    evaluation.submitted_at.isoformat()
+                    utc_iso(evaluation.submitted_at)
                     if evaluation.submitted_at
                     else None
                 )
@@ -691,7 +692,7 @@ def get_hr_evaluation_breakdown(faculty_id, term_id=None):
         "faculty_id": faculty_id,
         "evaluation_count": len(evaluations),
         "submitted_at": (
-            evaluations[0].submitted_at.isoformat()
+            utc_iso(evaluations[0].submitted_at)
             if evaluations[0].submitted_at
             else None
         ),

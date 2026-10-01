@@ -499,7 +499,7 @@ function exportRatingDistribution() {
 // INITIALIZE DASHBOARD
 // ============================================
 
-// Re-runnable term-scoped section (faculty count + activity log stay global).
+// Re-runnable term-scoped section (faculty count stays global).
 function reloadDashboardData() {
   loadEvaluationCompletion();
   loadSentimentData();
@@ -515,7 +515,6 @@ loadEvaluationCompletion();
 loadSentimentData();
 loadTopRatedFaculty();
 loadRecentEvaluations();
-loadRecentActivityLog();
 loadRatingDistribution();
 
 document

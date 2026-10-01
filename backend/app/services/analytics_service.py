@@ -3,6 +3,7 @@ from collections import Counter
 from ..models.evaluation import Evaluation, EvaluationResponse
 from ..models.evaluation_type import EvaluationType
 from ..models.faculty import Faculty
+from ..utils.time import utc_iso
 from .aggregation_service import get_faculty_evaluation_summary
 
 
@@ -362,7 +363,7 @@ def _build_key_testimonials(evaluations, evaluation_type_by_id):
                 else 0
             ),
             "submitted_at": (
-                evaluation.submitted_at.isoformat()
+                utc_iso(evaluation.submitted_at)
                 if evaluation.submitted_at
                 else None
             )
@@ -423,7 +424,7 @@ def _build_latest_comments(evaluations, evaluation_type_by_id):
             ),
             "source": source,
             "submitted_at": (
-                evaluation.submitted_at.isoformat()
+                utc_iso(evaluation.submitted_at)
                 if evaluation.submitted_at
                 else None
             )

@@ -95,7 +95,7 @@ function renderEvaluationLists(data) {
 
 async function loadHrDashboard() {
   try {
-    const data = await apiGet("/evaluations/hr-dashboard");
+    const data = await apiGet(withTerm("/evaluations/hr-dashboard"));
 
     renderHrStatCards(data);
     renderEvaluationLists(data);
@@ -135,7 +135,7 @@ async function loadHrDashboard() {
 
 async function loadHrSentiment() {
   try {
-    const data = await apiGet("/evaluations/dashboard-sentiment");
+    const data = await apiGet(withTerm("/evaluations/dashboard-sentiment"));
 
     const averageEl = document.getElementById("hr-sentiment-average");
 
@@ -238,7 +238,7 @@ async function loadHrRatingDistribution() {
 
   try {
     hrRatingDistributionData = await apiGet(
-      `/analytics/rating-distribution?evaluation_type=${encodeURIComponent(evalType)}`
+      withTerm(`/analytics/rating-distribution?evaluation_type=${encodeURIComponent(evalType)}`)
     );
 
     renderHrRatingDistributionChart();
@@ -387,10 +387,19 @@ function exportHrRatingDistribution() {
   );
 }
 
+// Re-runnable term-scoped section.
+function reloadHrDashboardData() {
+  loadHrDashboard();
+  loadHrSentiment();
+  loadHrRatingDistribution();
+}
+
 mountPageContent();
 loadHrDashboard();
 loadHrSentiment();
 loadHrRatingDistribution();
+
+initGlobalTermFilter(reloadHrDashboardData);
 
 document
   .getElementById("hr-rating-distribution-type")

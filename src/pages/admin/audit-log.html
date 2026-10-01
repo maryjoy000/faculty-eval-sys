@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Log | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+  <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+</head>
+<body>
+
+  <div id="app-admin-shell" data-active-page="audit" data-scope-label="Welcome back, Admin"></div>
+
+  <template id="page-content-template">
+
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">Audit Log</h1>
+      <p class="text-sm text-gray-500 mt-1">System-wide record of user actions across all roles, most recent first.</p>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <input
+          type="text" id="audit-search-input" placeholder="Search user or action..."
+          class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+        <select
+          id="audit-role-filter"
+          class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        >
+          <option value="all">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="hr">HR</option>
+          <option value="faculty">Faculty</option>
+          <option value="student">Student</option>
+        </select>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-gray-300 text-gray-700">
+              <th class="py-2 pr-4 font-semibold">Date &amp; Time</th>
+              <th class="py-2 pr-4 font-semibold">User</th>
+              <th class="py-2 pr-4 font-semibold">Role</th>
+              <th class="py-2 font-semibold">Action</th>
+            </tr>
+          </thead>
+          <tbody id="audit-log-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="audit-log-pagination" class="no-print"></div>
+    </div>
+
+  </template>
+
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/toast.js"></script>
+  <script src="../../js/utils/pagination.js"></script>
+  <script src="../../js/components/sidebar.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/pages/audit-log.js"></script>
+</body>
+</html>

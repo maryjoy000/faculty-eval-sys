@@ -87,7 +87,7 @@ async function renderReportsTable() {
   const rows = await Promise.all(hrFacultyRoster.map(async (faculty) => {
     let summary = null;
     try {
-      summary = await apiGet(`/evaluations/${faculty.id}`);
+      summary = await apiGet(withTerm(`/evaluations/${faculty.id}`));
     } catch (error) {
       console.error(`Failed to load report for faculty ${faculty.id}:`, error);
       summary = null;
@@ -153,10 +153,10 @@ async function loadFacultyReportData(facultyId) {
   };
 
   const requests = [
-    ["classroom", `/evaluations/${facultyId}/classroom-breakdown`],
-    ["student", `/evaluations/${facultyId}/student-breakdown`],
-    ["peer", `/evaluations/${facultyId}/peer-breakdown`],
-    ["hr", `/evaluations/${facultyId}/hr-breakdown`]
+    ["classroom", withTerm(`/evaluations/${facultyId}/classroom-breakdown`)],
+    ["student", withTerm(`/evaluations/${facultyId}/student-breakdown`)],
+    ["peer", withTerm(`/evaluations/${facultyId}/peer-breakdown`)],
+    ["hr", withTerm(`/evaluations/${facultyId}/hr-breakdown`)]
   ];
 
   await Promise.all(
@@ -184,6 +184,7 @@ async function showReportDetail(faculty) {
 
   attachReportTabListeners();
 
+  await refreshLiveCriteriaInstruments();
   await loadFacultyReportData(faculty.id);
 
   renderReportTabContent();
@@ -293,4 +294,21 @@ attachDetailViewListeners();
   await loadSystemSettings();
   await renderReportsTable();
   openReportFromQueryParam();
+  initGlobalTermFilter(onHrReportsTermChange);
 })();
+
+// Term changes invalidate cached breakdowns; refresh whichever view
+// is currently visible so stale-term data never lingers.
+async function onHrReportsTermChange() {
+  hrReportDataCache = {};
+
+  const detailView = document.getElementById("reports-detail-view");
+
+  if (detailView && !detailView.classList.contains("hidden") && currentReportFaculty) {
+    await showReportDetail(currentReportFaculty);
+  } else {
+    const pager = getHrReportsPager();
+    if (pager) pager.reset();
+    await renderReportsTable();
+  }
+}
