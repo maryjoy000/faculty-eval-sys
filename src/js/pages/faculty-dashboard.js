@@ -3,16 +3,13 @@
 // ============================================
 
 let facultyDashboardData = null;
-let loggedInFacultyId = null;
 
 async function loadFacultyDashboardData() {
   const currentUser = await apiGet("/auth/me");
 
-  loggedInFacultyId = currentUser.linked_faculty_id;
-
   try {
     facultyDashboardData = await apiGet(
-      `/evaluations/${loggedInFacultyId}`
+      `/evaluations/${currentUser.linked_faculty_id}`
     );
   } catch (error) {
     console.warn(
@@ -26,84 +23,40 @@ async function loadFacultyDashboardData() {
   return facultyDashboardData;
 }
 
-async function renderFacultyStatCards() {
-  const container = document.getElementById("faculty-stat-cards");
-  if (!container) return;
-
-  const data = facultyDashboardData;
-
-  const overallRating =
-    data?.weighted_overall_rating ?? null;
-
-  const overallPct =
-    data?.weighted_overall_pct ?? null;
-
-  const studentRating =
-    data?.per_type?.student?.average_rating ?? null;
-
-  const peerRating =
-    data?.per_type?.peerToPeer?.average_rating ?? null;
-
-  const peerCount =
-    data?.per_type?.peerToPeer?.count ?? 0;
-
-  const cards = [
-    {
-      label: "Overall Rating",
-      value:
-        overallRating !== null
-          ? Number(overallRating).toFixed(2)
-          : "—",
-      note:
-        overallPct !== null
-          ? `${Number(overallPct).toFixed(2)}% weighted score`
-          : "Available after report release"
-    },
-    {
-      label: "Peer Evaluation",
-      value:
-        peerRating !== null
-          ? Number(peerRating).toFixed(2)
-          : peerCount > 0
-            ? "Submitted"
-            : "—",
-      note:
-        peerCount > 0
-          ? "Peer evaluation received"
-          : "No peer evaluation yet"
-    },
-    {
-      label: "Student Evaluation",
-      value:
-        studentRating !== null
-          ? Number(studentRating).toFixed(2)
-          : "—",
-      note:
-        studentRating !== null
-          ? "Student evaluation received"
-          : "Available after report release"
+// Rating-scale equivalents (Outstanding, Very Satisfactory, ...) are read
+// live so dashboard labels always match Reports. Returns "" when the
+// scale or a matching band is unavailable.
+async function loadEquivalents(typeCode) {
+  try {
+    const scale = await apiGet(`/rating-scales/${typeCode}`);
+    if (scale && Array.isArray(scale.equivalents)) {
+      return scale.equivalents;
     }
-  ];
+  } catch (error) {
+    console.warn(`Rating scale for ${typeCode} is not available.`, error);
+  }
+  return [];
+}
 
-  container.innerHTML = cards
-    .map(
-      (card) => `
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <p class="text-sm text-gray-500 mb-2">
-            ${card.label}
-          </p>
+function equivalentLabel(equivalents, average) {
+  if (average === null || average === undefined) return "";
+  const value = Number(average);
+  const band = (equivalents || []).find(
+    (entry) => value >= Number(entry.min) && value <= Number(entry.max)
+  );
+  return band ? String(band.label) : "";
+}
 
-          <p class="text-2xl font-bold text-gray-800 mb-1">
-            ${card.value}
-          </p>
-
-          <p class="text-xs text-gray-400">
-            ${card.note}
-          </p>
-        </div>
-      `
-    )
-    .join("");
+function resultCard(label, average, equivalents, released) {
+  const hasScore = released && average !== null && average !== undefined;
+  const band = hasScore ? equivalentLabel(equivalents, average) : "";
+  return {
+    label,
+    value: hasScore ? Number(average).toFixed(2) : "—",
+    note: hasScore
+      ? (band || "Evaluation received")
+      : "Available after report release"
+  };
 }
 
 async function renderFacultyStatCards() {
@@ -111,81 +64,33 @@ async function renderFacultyStatCards() {
   if (!container) return;
 
   const data = facultyDashboardData;
+  const released = data !== null && data !== undefined;
 
-  let submittedPeerEvaluations = 0;
-  let totalPeerEvaluations = 0;
-
-  try {
-    const currentUser = await apiGet("/auth/me");
-    const roster = await apiGet("/faculty");
-    const peerStatuses = await apiGet("/evaluations/peer-status");
-
-    const currentFacultyId = currentUser.linked_faculty_id;
-
-    const colleagues = roster.filter(
-      (faculty) =>
-        faculty.status === "Active" &&
-        Number(faculty.id) !== Number(currentFacultyId)
-    );
-
-    totalPeerEvaluations = colleagues.length;
-
-    submittedPeerEvaluations = colleagues.filter((faculty) => {
-      const status = peerStatuses.find(
-        (item) =>
-          Number(item.faculty_id) === Number(faculty.id)
-      );
-
-      return status?.status === "evaluated";
-    }).length;
-  } catch (error) {
-    console.error(
-      "Failed to load peer evaluation progress:",
-      error
-    );
-  }
-  const overallPct =
-    data?.weighted_overall_pct ?? null;
-
-  const overallRating =
-    overallPct !== null
-      ? Number(overallPct) / 20
-      : null;
-
-  const studentRating =
-    data?.per_type?.student?.average_rating ?? null;
+  const [peerBands, classroomBands, hrBands] = await Promise.all([
+    loadEquivalents("peerToPeer"),
+    loadEquivalents("classroomObservation"),
+    loadEquivalents("hrEvaluation"),
+  ]);
 
   const cards = [
-    {
-      label: "Overall Rating",
-      value:
-        overallRating !== null
-          ? `${Number(overallRating).toFixed(2)}`
-          : "—",
-      note:
-        overallPct !== null
-          ? `${Number(overallPct).toFixed(2)}% weighted score`
-          : "Available after report release"
-    },
-    {
-      label: "Peer Evaluations",
-      value: `${submittedPeerEvaluations} / ${totalPeerEvaluations}`,
-      note:
-        totalPeerEvaluations > 0
-          ? `${submittedPeerEvaluations} submitted`
-          : "No colleagues available"
-    },
-    {
-      label: "Student Evaluation",
-      value:
-        studentRating !== null
-          ? Number(studentRating).toFixed(2)
-          : "—",
-      note:
-        studentRating !== null
-          ? "Student evaluation received"
-          : "Available after report release"
-    }
+    resultCard(
+      "Peer Evaluation",
+      data?.per_type?.peerToPeer?.average_rating ?? null,
+      peerBands,
+      released
+    ),
+    resultCard(
+      "Classroom Observation",
+      data?.per_type?.classroomObservation?.average_rating ?? null,
+      classroomBands,
+      released
+    ),
+    resultCard(
+      "HR Evaluation",
+      data?.per_type?.hrEvaluation?.average_rating ?? null,
+      hrBands,
+      released
+    ),
   ];
 
   container.innerHTML = cards
@@ -243,26 +148,7 @@ async function renderEvaluationLists() {
       );
 
       if (evalData?.status === "evaluated") {
-        try {
-          const result = await apiGet(
-            `/evaluations/peer-status/${faculty.id}`
-          );
-
-          completed.push({
-            faculty,
-            score: result.overall_average
-          });
-        } catch (error) {
-          console.error(
-            `Failed to load peer result for faculty ${faculty.id}:`,
-            error
-          );
-
-          completed.push({
-            faculty,
-            score: null
-          });
-        }
+        completed.push({ faculty });
       } else {
         pending.push(faculty);
       }
@@ -299,18 +185,10 @@ async function renderEvaluationLists() {
       completed.length > 0
         ? completed
             .map(
-              ({ faculty, score }) => `
-                <div class="flex items-center justify-between py-2 border-b border-gray-100 text-sm">
+              ({ faculty }) => `
+                <div class="flex items-center py-2 border-b border-gray-100 text-sm">
                   <span class="text-gray-700">
                     ${faculty.name}
-                  </span>
-
-                  <span class="text-green-600 font-medium">
-                    ${
-                      score !== null
-                        ? Number(score).toFixed(2)
-                        : "—"
-                    }
                   </span>
                 </div>
               `
@@ -321,6 +199,13 @@ async function renderEvaluationLists() {
               No completed evaluations yet.
             </p>
           `;
+
+    const completedSubtitle = document.getElementById(
+      "completed-evaluations-subtitle"
+    );
+    if (completedSubtitle) {
+      completedSubtitle.textContent = `Total responses: ${completed.length}`;
+    }
 
     document
       .querySelectorAll(".dashboard-evaluate-btn")
@@ -367,73 +252,11 @@ async function renderEvaluationLists() {
   }
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-async function renderMySubjectsAndSections() {
-  const subjectsList = document.getElementById("my-subjects-list");
-  const sectionsList = document.getElementById("my-sections-list");
-
-  if (!subjectsList || !sectionsList) return;
-
-  if (!loggedInFacultyId) {
-    subjectsList.innerHTML = `<li class="text-gray-400">No linked faculty record.</li>`;
-    sectionsList.innerHTML = `<li class="text-gray-400">No linked faculty record.</li>`;
-    return;
-  }
-
-  try {
-    const faculty = await apiGet(`/faculty/${loggedInFacultyId}`);
-
-    const subjects = Array.isArray(faculty.subjects) ? faculty.subjects : [];
-    const sections = Array.isArray(faculty.sections) ? faculty.sections : [];
-
-    subjectsList.innerHTML = subjects.length
-      ? subjects
-          .map(
-            (subject) => `
-              <li>
-                ${
-                  subject.code
-                    ? `<span class="font-mono text-xs text-gray-500">${escapeHtml(subject.code)}</span> — `
-                    : ""
-                }
-                ${escapeHtml(subject.name)}
-              </li>
-            `
-          )
-          .join("")
-      : `<li class="text-gray-400">No subjects assigned yet.</li>`;
-
-    sectionsList.innerHTML = sections.length
-      ? sections
-          .map(
-            (section) => `
-              <li>${escapeHtml(`${section.grade_level} ${section.name}`)}</li>
-            `
-          )
-          .join("")
-      : `<li class="text-gray-400">No sections assigned yet.</li>`;
-  } catch (error) {
-    console.error("Failed to load my subjects and sections:", error);
-
-    subjectsList.innerHTML = `<li class="text-red-600">Unable to load.</li>`;
-    sectionsList.innerHTML = `<li class="text-red-600">Unable to load.</li>`;
-  }
-}
-
 async function initFacultyDashboard() {
   try {
     await loadFacultyDashboardData();
     await renderFacultyStatCards();
     await renderEvaluationLists();
-    await renderMySubjectsAndSections();
   } catch (error) {
     console.error(
       "Failed to load faculty dashboard:",

@@ -15,7 +15,7 @@
 
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-brand">Faculty Dashboard</h1>
-      <p class="text-sm text-gray-500 mt-1">Overview of your peer evaluation progress.</p>
+      <p class="text-sm text-gray-500 mt-1">Overview of your evaluation results.</p>
     </div>
 
     <!-- Simple nav since there's no sidebar -->
@@ -37,25 +37,8 @@
 
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h2 class="font-semibold text-gray-800">Completed Peer Evaluations</h2>
-        <p class="text-sm text-gray-500 mb-4">&nbsp;</p>
+        <p id="completed-evaluations-subtitle" class="text-sm text-gray-500 mb-4">Total responses: 0</p>
         <div id="completed-evaluations-list"></div>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mt-4">
-      <h2 class="font-semibold text-gray-800">My Subjects &amp; Sections</h2>
-      <p class="text-sm text-gray-500 mb-4">Assigned by the Admin. Students from your sections can evaluate you.</p>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div>
-          <h3 class="text-sm font-medium text-gray-700 mb-2">Subjects</h3>
-          <ul id="my-subjects-list" class="space-y-1 text-sm text-gray-600"></ul>
-        </div>
-
-        <div>
-          <h3 class="text-sm font-medium text-gray-700 mb-2">Sections</h3>
-          <ul id="my-sections-list" class="space-y-1 text-sm text-gray-600"></ul>
-        </div>
       </div>
     </div>
 
