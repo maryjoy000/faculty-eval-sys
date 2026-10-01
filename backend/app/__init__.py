@@ -22,6 +22,7 @@ from .routes.two_factor import two_factor_bp
 from .routes.system_settings import system_settings_bp
 from .routes.enrollment import sections_bp, students_bp
 from .routes.school_terms import terms_bp
+from .routes.imports import imports_bp
 
 def create_app():
     app = Flask(__name__)
@@ -78,5 +79,6 @@ def create_app():
     app.register_blueprint(sections_bp, url_prefix="/api/sections")
     app.register_blueprint(students_bp, url_prefix="/api/students")
     app.register_blueprint(terms_bp, url_prefix="/api/school-terms")
+    app.register_blueprint(imports_bp, url_prefix="/api/imports")
     
     return app

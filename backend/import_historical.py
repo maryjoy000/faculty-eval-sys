@@ -375,21 +375,48 @@ def _get_or_create_term(school_year, semester, terms_by_key, create_terms):
     return term, True, None
 
 
-def run_import(path, dry_run=False, create_terms=True,
-               create_missing_faculty=False, no_sentiment=False,
-               skip_exact_duplicates=False):
-    """Validate + insert every row. Returns a summary dict (also printed)."""
+def _normalize_input_row(row):
+    """Normalize one raw row dict to {lowercased_header: str_value}.
+
+    File readers already normalize, but API payloads may carry original
+    header casing or numeric cells — normalizing here keeps a single
+    source of truth for both entry points.
+    """
+    normalized = {}
+    for key, value in (row or {}).items():
+        norm_key = normalize_header(key)
+        if not norm_key:
+            continue
+        normalized[norm_key] = "" if value is None else str(value)
+    return normalized
+
+
+def process_rows(rows, source_label="upload", dry_run=False, create_terms=True,
+                 create_missing_faculty=False, no_sentiment=False,
+                 skip_exact_duplicates=False, verbose=True, actor_user_id=None):
+    """Validate + insert already-parsed rows. Returns a summary dict.
+
+    `rows` is a list of dicts (any header casing; values may be numbers).
+    Used by both the CLI (run_import below) and the admin UI bulk-import
+    API so validation never diverges between the two. Prints progress
+    only when verbose=True; warnings are always collected in the summary.
+    `actor_user_id` attributes the audit entry (web UI passes the admin's
+    id; the CLI leaves it None = system import).
+    """
     from app.extensions import db
     from app.models.evaluation import Evaluation, EvaluationResponse
     from app.models.faculty import Faculty
     from app.utils.evaluation_rules import sanitize_comments
     from app.services.activity_service import log_activity
 
-    _, rows = read_rows(path)
+    rows = [_normalize_input_row(row) for row in (rows or [])]
+    # Skip fully blank rows (common at the end of spreadsheets).
+    rows = [row for row in rows if any((v or "").strip() != "" for v in row.values())]
     if not rows:
-        print("No data rows found — nothing to do.")
+        if verbose:
+            print("No data rows found — nothing to do.")
         return {"inserted": 0, "skipped": 0, "terms_created": 0,
-                "faculty_created": 0, "errors": []}
+                "faculty_created": 0, "errors": [], "warnings": []}
 
     lookups = _build_lookups()
     types_by_code = lookups["types_by_code"]
@@ -402,12 +429,15 @@ def run_import(path, dry_run=False, create_terms=True,
     # Lazily imported: avoids pulling torch/transformers unless needed.
     sentiment_fn = None
     sentiment_failed = False
+    warnings = []
     if not no_sentiment:
         try:
             from app.utils.sentiment import analyze_sentiment as _fn
             sentiment_fn = _fn
         except Exception as exc:  # missing deps, no model on disk, etc.
-            print(f"WARNING: sentiment disabled ({exc}); storing NULL scores.")
+            warnings.append(f"sentiment disabled ({exc}); storing NULL scores.")
+            if verbose:
+                print(f"WARNING: sentiment disabled ({exc}); storing NULL scores.")
             sentiment_fn = None
             sentiment_failed = True
 
@@ -542,7 +572,10 @@ def run_import(path, dry_run=False, create_terms=True,
                 raw_comments if (raw_comments or "").strip() != "" else None,
             )
             if type_code == "classroomObservation" and (raw_comments or "").strip():
-                print(f"  {tag}: note — comments dropped (classroomObservation is rating-only).")
+                warnings.append(
+                    f"{tag}: comments dropped (classroomObservation is rating-only).")
+                if verbose:
+                    print(f"  {tag}: note — comments dropped (classroomObservation is rating-only).")
             if comments is not None:
                 comments = comments.strip() or None
 
@@ -555,7 +588,10 @@ def run_import(path, dry_run=False, create_terms=True,
                         sentiment_label = str(result.get("label", "")).lower() or None
                         sentiment_score = float(result.get("score"))
                 except Exception as exc:
-                    print(f"  {tag}: warning — sentiment failed ({exc}); storing NULL.")
+                    warnings.append(
+                        f"{tag}: sentiment failed ({exc}); storing NULL.")
+                    if verbose:
+                        print(f"  {tag}: warning — sentiment failed ({exc}); storing NULL.")
                     sentiment_failed = True  # warn once, keep importing
 
             # --- submitted_at ---
@@ -620,28 +656,31 @@ def run_import(path, dry_run=False, create_terms=True,
         except Exception as exc:  # unexpected — still per-row, never abort all
             row_errors.append(f"{tag}: unexpected error: {exc}")
 
-    # One audit entry for the whole file (user_id None = system import).
+    # One audit entry for the whole batch (user_id None = system import;
+    # the web UI passes the admin's id for attribution).
     if inserted and not dry_run:
         log_activity(
-            f"Imported historical evaluations from {os.path.basename(path)}: "
+            f"Imported historical evaluations from {source_label}: "
             f"{inserted} inserted"
             + (f", {skipped} skipped" if skipped else "")
             + (f", {terms_created} term(s) created" if terms_created else ""),
-            user_id=None,
+            user_id=actor_user_id,
         )
 
     if dry_run:
         db.session.rollback()
-        print(f"DRY-RUN: rolled back ({inserted} would be inserted).")
+        if verbose:
+            print(f"DRY-RUN: rolled back ({inserted} would be inserted).")
     else:
         db.session.commit()
 
-    print(f"Terms created: {terms_created} | Faculty created: {faculty_created}")
-    print(f"Inserted: {inserted} | Skipped: {skipped} | Errors: {len(row_errors)}")
-    for message in row_errors[:30]:
-        print(f"  ERROR {message}")
-    if len(row_errors) > 30:
-        print(f"  ... and {len(row_errors) - 30} more (see full output)")
+    if verbose:
+        print(f"Terms created: {terms_created} | Faculty created: {faculty_created}")
+        print(f"Inserted: {inserted} | Skipped: {skipped} | Errors: {len(row_errors)}")
+        for message in row_errors[:30]:
+            print(f"  ERROR {message}")
+        if len(row_errors) > 30:
+            print(f"  ... and {len(row_errors) - 30} more (see full output)")
 
     return {
         "inserted": inserted,
@@ -649,7 +688,29 @@ def run_import(path, dry_run=False, create_terms=True,
         "terms_created": terms_created,
         "faculty_created": faculty_created,
         "errors": row_errors,
+        "warnings": warnings,
     }
+
+
+def run_import(path, dry_run=False, create_terms=True,
+               create_missing_faculty=False, no_sentiment=False,
+               skip_exact_duplicates=False):
+    """Validate + insert every row from a CSV/XLSX file.
+
+    Thin CLI wrapper around process_rows (single source of truth shared
+    with the admin UI bulk-import API). Returns a summary dict.
+    """
+    _, rows = read_rows(path)
+    return process_rows(
+        rows,
+        source_label=os.path.basename(path),
+        dry_run=dry_run,
+        create_terms=create_terms,
+        create_missing_faculty=create_missing_faculty,
+        no_sentiment=no_sentiment,
+        skip_exact_duplicates=skip_exact_duplicates,
+        verbose=True,
+    )
 
 
 def generate_templates(out_dir):

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historical Import | Faculty Evaluation System</title>
+  <link rel="stylesheet" href="../../../dist/output.css">
+  <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+</head>
+<body>
+
+  <div id="app-admin-shell" data-active-page="import" data-scope-label="Welcome back, Admin"></div>
+
+  <template id="page-content-template">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Historical Import</h1>
+        <p class="text-sm text-gray-500 mt-1">Backfill past evaluations (e.g. 2025-2026 1st &amp; 2nd) for reference and reporting. Imports never touch logins — evaluator is stored as empty, reference-only.</p>
+      </div>
+    </div>
+
+    <!-- STEP 1: templates -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <h2 class="font-semibold text-gray-800 mb-1">Step 1 — Download a template</h2>
+      <p class="text-sm text-gray-500 mb-4">One row per old evaluation. Headers are built from your live question set, so they always match. Keep the header row exactly as downloaded.</p>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn-secondary text-sm" data-template-type="student">Student (q1..q33)</button>
+        <button type="button" class="btn-secondary text-sm" data-template-type="peerToPeer">Peer-to-Peer (pr1..pr11)</button>
+        <button type="button" class="btn-secondary text-sm" data-template-type="hrEvaluation">HR (p1..p8)</button>
+        <button type="button" class="btn-secondary text-sm" data-template-type="classroomObservation">Classroom Obs. (d1q1..)</button>
+      </div>
+      <p id="template-status" class="text-xs text-gray-400 mt-3"></p>
+    </div>
+
+    <!-- STEP 2: upload + options -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <h2 class="font-semibold text-gray-800 mb-1">Step 2 — Upload the filled file</h2>
+      <p class="text-sm text-gray-500 mb-4"><code class="bg-gray-100 px-1 rounded">faculty_name</code> must match Faculty Management letter-by-letter (case may differ). Reference list at the bottom of this page.</p>
+
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <input type="file" id="hist-import-input" accept=".xlsx,.xls,.csv" class="hidden">
+        <button type="button" id="hist-choose-btn" class="btn-secondary text-sm">Choose .xlsx / .csv</button>
+        <span id="hist-file-name" class="text-sm text-gray-500 self-center">No file chosen.</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700 mb-4">
+        <label class="flex items-start gap-2">
+          <input type="checkbox" id="opt-create-terms" checked class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+          <span>Auto-create missing terms as <em>draft</em> <span class="text-gray-400">(never auto-opened)</span></span>
+        </label>
+        <label class="flex items-start gap-2">
+          <input type="checkbox" id="opt-create-faculty" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+          <span>Create unknown faculty as Archived <span class="text-gray-400">(default off — typos become errors instead of duplicates)</span></span>
+        </label>
+        <label class="flex items-start gap-2">
+          <input type="checkbox" id="opt-sentiment" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+          <span>Compute sentiment for old comments <span class="text-gray-400">(slow first run — loads the AI model; off = NULL scores)</span></span>
+        </label>
+        <label class="flex items-start gap-2">
+          <input type="checkbox" id="opt-skip-dupes" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+          <span>Skip rows identical to existing records <span class="text-gray-400">(re-run protection)</span></span>
+        </label>
+      </div>
+
+      <div class="flex gap-2">
+        <button type="button" id="hist-validate-btn" class="btn-secondary text-sm" disabled>Validate (dry-run)</button>
+        <button type="button" id="hist-commit-btn" class="btn-primary text-sm" disabled>Import</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: results -->
+    <div id="hist-result-card" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <h2 id="hist-result-title" class="font-semibold text-gray-800 mb-1">Result</h2>
+      <p id="hist-result-summary" class="text-sm text-gray-600 mb-3"></p>
+      <div id="hist-result-warnings" class="hidden mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3"></div>
+      <div id="hist-result-errors" class="hidden mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 max-h-64 overflow-y-auto"></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead id="hist-preview-head"></thead>
+          <tbody id="hist-preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Faculty reference -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <h2 class="font-semibold text-gray-800 mb-1">Faculty name reference</h2>
+      <p class="text-sm text-gray-500 mb-3">Copy these exactly into the <code class="bg-gray-100 px-1 rounded">faculty_name</code> column.</p>
+      <div id="hist-faculty-list" class="text-sm text-gray-700 flex flex-wrap gap-2"></div>
+    </div>
+
+  </template>
+
+  <script src="../../js/utils/session.js"></script>
+  <script src="../../js/data/profile-data.js"></script>
+  <script src="../../js/data/activity-log.js"></script>
+  <script src="../../js/data/notifications-data.js"></script>
+  <script src="../../js/utils/api.js"></script>
+  <script src="../../js/components/toast.js"></script>
+  <script src="../../assets/js/xlsx.full.min.js"></script>
+  <script src="../../js/components/sidebar.js"></script>
+  <script src="../../js/components/confirm-modal.js"></script>
+  <script src="../../js/pages/import.js"></script>
+</body>
+</html>
