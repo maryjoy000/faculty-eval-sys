@@ -13,7 +13,7 @@ from ..models.evaluation import Evaluation, EvaluationResponse
 from ..utils.decorators import get_current_role, roles_required
 from ..utils.eligibility import resolve_evaluator, check_self_evaluation, check_period_open, check_duplicate
 from ..services.aggregation_service import get_faculty_evaluation_summary, get_classroom_observation_breakdown, get_student_evaluation_breakdown, get_peer_evaluation_breakdown, get_hr_evaluation_breakdown
-from ..services.report_service import mark_viewed
+from ..services.report_service import is_released, mark_viewed
 from ..services.activity_service import log_activity
 from ..utils.sentiment import analyze_sentiment
 from ..utils.evaluation_rules import sanitize_comments, validate_required_comment
@@ -852,6 +852,8 @@ def get_faculty_summary(faculty_id):
         own_faculty = Faculty.query.filter_by(user_id=current_user.id).first()
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
+        if not is_released(faculty_id):
+            return jsonify({"error": "Your report has not been released yet"}), 403
         mark_viewed(faculty_id)
 
     if not Faculty.query.get(faculty_id):
@@ -873,6 +875,8 @@ def get_classroom_breakdown(faculty_id):
         own_faculty = Faculty.query.filter_by(user_id=current_user.id).first()
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
+        if not is_released(faculty_id):
+            return jsonify({"error": "Your report has not been released yet"}), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
@@ -899,6 +903,10 @@ def get_student_breakdown(faculty_id):
 
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
+        if not is_released(faculty_id):
+            return jsonify({
+                "error": "Your report has not been released yet"
+            }), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
@@ -928,6 +936,10 @@ def get_peer_breakdown(faculty_id):
 
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
+        if not is_released(faculty_id):
+            return jsonify({
+                "error": "Your report has not been released yet"
+            }), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
@@ -957,6 +969,10 @@ def get_hr_breakdown(faculty_id):
 
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
+        if not is_released(faculty_id):
+            return jsonify({
+                "error": "Your report has not been released yet"
+            }), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404

@@ -1,4 +1,4 @@
-"""Faculty sees own results immediately — no release required.
+"""Faculty sees own results only after HR release.
 
 Run from backend/:
     SECRET_KEY=test-secret-key-for-pytest-only DATABASE_URL=sqlite:// \
@@ -129,14 +129,34 @@ def _seed():
     return faculty.id, other.id
 
 
-def test_faculty_sees_own_summary_without_release(access_app):
+def test_faculty_blocked_until_hr_releases(access_app):
     with access_app.app_context():
+        from app.models.faculty import Faculty
+        from app.models.user import User
+        from app.services.report_service import release_report
+
         faculty_id, _ = _seed()
+        hr = User(username="hr-rel", role="hr", name="HR Rel", status="active")
+        hr.set_password("Hr123456!")
+        db.session.add(hr)
+        db.session.commit()
+        hr_id = hr.id
     client = access_app.test_client()
     assert client.post("/api/auth/login",
                        json={"username": "fac-ana", "password": "Faculty123!"}).status_code == 200
 
-    # No FacultyReport row exists — pre-release — yet this must work.
+    # Pre-release: gated on summary and breakdowns.
+    resp = client.get(f"/api/evaluations/{faculty_id}")
+    assert resp.status_code == 403
+    assert "released" in resp.get_json()["error"]
+
+    breakdown = client.get(f"/api/evaluations/{faculty_id}/student-breakdown")
+    assert breakdown.status_code == 403
+
+    # HR releases → visible.
+    with access_app.app_context():
+        release_report(Faculty.query.get(faculty_id), hr_id)
+
     resp = client.get(f"/api/evaluations/{faculty_id}")
     assert resp.status_code == 200
     body = resp.get_json()
