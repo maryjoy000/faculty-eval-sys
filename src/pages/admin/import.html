@@ -16,65 +16,140 @@
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-800">Historical Import</h1>
-        <p class="text-sm text-gray-500 mt-1">Backfill past evaluations (e.g. 2025-2026 1st &amp; 2nd) for reference and reporting. Imports never touch logins — evaluator is stored as empty, reference-only.</p>
+        <p class="text-sm text-gray-500 mt-1">Backfill past evaluations (e.g. 2025-2026 1st &amp; 2nd) for reference and reporting. Imports never touch logins.</p>
       </div>
     </div>
 
-    <!-- STEP 1: templates -->
+    <!-- PROGRESS STEPS -->
+    <div class="flex flex-wrap items-center gap-2 mb-6 text-sm">
+      <span id="hist-step-1" class="px-3 py-1.5 rounded-full font-medium bg-gray-100 text-gray-400">1. Download template</span>
+      <span class="text-gray-300">></span>
+      <span id="hist-step-2" class="px-3 py-1.5 rounded-full font-medium bg-gray-100 text-gray-400">2. Fill it in Excel</span>
+      <span class="text-gray-300">></span>
+      <span id="hist-step-3" class="px-3 py-1.5 rounded-full font-medium bg-gray-100 text-gray-400">3. Upload and Check</span>
+      <span class="text-gray-300">></span>
+      <span id="hist-step-4" class="px-3 py-1.5 rounded-full font-medium bg-gray-100 text-gray-400">4. Import</span>
+    </div>
+
+    <!-- STEP 1 -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-      <h2 class="font-semibold text-gray-800 mb-1">Step 1 — Download a template</h2>
-      <p class="text-sm text-gray-500 mb-4">One row per old evaluation. Headers are built from your live question set, so they always match. Keep the header row exactly as downloaded.</p>
+      <h2 class="font-semibold text-gray-800 mb-1">Step 1 - Download a template</h2>
+      <p class="text-sm text-gray-500 mb-4">Pick the evaluation type. Headers are built from your live questions, so they always match.</p>
       <div class="flex flex-wrap gap-2">
-        <button type="button" class="btn-secondary text-sm" data-template-type="student">Student (q1..q33)</button>
-        <button type="button" class="btn-secondary text-sm" data-template-type="peerToPeer">Peer-to-Peer (pr1..pr11)</button>
-        <button type="button" class="btn-secondary text-sm" data-template-type="hrEvaluation">HR (p1..p8)</button>
-        <button type="button" class="btn-secondary text-sm" data-template-type="classroomObservation">Classroom Obs. (d1q1..)</button>
+        <button type="button" class="btn-secondary text-sm" data-template-type="student">Student</button>
+        <button type="button" class="btn-secondary text-sm" data-template-type="peerToPeer">Peer-to-Peer</button>
+        <button type="button" class="btn-secondary text-sm" data-template-type="hrEvaluation">HR</button>
+        <button type="button" class="btn-secondary text-sm" data-template-type="classroomObservation">Classroom Observation</button>
       </div>
       <p id="template-status" class="text-xs text-gray-400 mt-3"></p>
     </div>
 
-    <!-- STEP 2: upload + options -->
+    <!-- STEP 2 -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-      <h2 class="font-semibold text-gray-800 mb-1">Step 2 — Upload the filled file</h2>
-      <p class="text-sm text-gray-500 mb-4"><code class="bg-gray-100 px-1 rounded">faculty_name</code> must match Faculty Management letter-by-letter (case may differ). Reference list at the bottom of this page.</p>
+      <h2 class="font-semibold text-gray-800 mb-1">Step 2 - Fill it in Excel</h2>
+      <p class="text-sm text-gray-500 mb-3">One row = one old evaluation. Delete the example rows, add yours. A file may mix types and semesters.</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm mb-3">
+          <thead>
+            <tr class="border-b border-gray-300 text-gray-700">
+              <th class="py-2 pr-4 font-semibold align-top whitespace-nowrap">Column</th>
+              <th class="py-2 pr-4 font-semibold align-top">What to put</th>
+              <th class="py-2 font-semibold align-top">Example</th>
+            </tr>
+          </thead>
+          <tbody class="text-gray-600">
+            <tr class="border-b border-gray-100">
+              <td class="py-2 pr-4 font-mono text-xs align-top whitespace-nowrap">faculty_name</td>
+              <td class="py-2 pr-4 align-top">Exact name from the list below <span class="text-gray-400">(click a name to copy)</span></td>
+              <td class="py-2 font-mono text-xs align-top">Analiza B. Layson</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-2 pr-4 font-mono text-xs align-top whitespace-nowrap">evaluation_type</td>
+              <td class="py-2 pr-4 align-top">student, peerToPeer, hrEvaluation, or classroomObservation</td>
+              <td class="py-2 font-mono text-xs align-top">student</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-2 pr-4 font-mono text-xs align-top whitespace-nowrap">school_year + semester</td>
+              <td class="py-2 pr-4 align-top">School year and semester of the old record</td>
+              <td class="py-2 font-mono text-xs align-top">2025-2026 / 1st</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-2 pr-4 font-mono text-xs align-top whitespace-nowrap">q1, q2, ... (ratings)</td>
+              <td class="py-2 pr-4 align-top">Whole numbers 1-5, fill <strong>all</strong> of them</td>
+              <td class="py-2 font-mono text-xs align-top">4, 5, 4, ...</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-2 pr-4 font-mono text-xs align-top whitespace-nowrap">comments</td>
+              <td class="py-2 pr-4 align-top">Optional <span class="text-gray-400">(classroom obs. ignores it)</span></td>
+              <td class="py-2 font-mono text-xs align-top">Magaling magturo</td>
+            </tr>
+            <tr>
+              <td class="py-2 pr-4 font-mono text-xs align-top whitespace-nowrap">submitted_at</td>
+              <td class="py-2 pr-4 align-top">Old date, or blank for today</td>
+              <td class="py-2 font-mono text-xs align-top">2025-10-15</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-gray-400">Only have final averages (no per-question scores)? Leave the rating columns blank and put the average in <code class="bg-gray-100 px-1 rounded">overall_average</code> instead.</p>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
+      <h2 class="font-semibold text-gray-800 mb-1">Step 3 - Upload and Check</h2>
+      <p class="text-sm text-gray-500 mb-4">Your file is checked first - nothing is saved until you confirm.</p>
 
       <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <input type="file" id="hist-import-input" accept=".xlsx,.xls,.csv" class="hidden">
-        <button type="button" id="hist-choose-btn" class="btn-secondary text-sm">Choose .xlsx / .csv</button>
-        <span id="hist-file-name" class="text-sm text-gray-500 self-center">No file chosen.</span>
+        <button type="button" id="hist-import-btn" class="btn-primary text-sm">Import</button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700 mb-4">
-        <label class="flex items-start gap-2">
-          <input type="checkbox" id="opt-create-terms" checked class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
-          <span>Auto-create missing terms as <em>draft</em> <span class="text-gray-400">(never auto-opened)</span></span>
-        </label>
-        <label class="flex items-start gap-2">
-          <input type="checkbox" id="opt-create-faculty" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
-          <span>Create unknown faculty as Archived <span class="text-gray-400">(default off — typos become errors instead of duplicates)</span></span>
-        </label>
-        <label class="flex items-start gap-2">
-          <input type="checkbox" id="opt-sentiment" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
-          <span>Compute sentiment for old comments <span class="text-gray-400">(slow first run — loads the AI model; off = NULL scores)</span></span>
-        </label>
-        <label class="flex items-start gap-2">
-          <input type="checkbox" id="opt-skip-dupes" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
-          <span>Skip rows identical to existing records <span class="text-gray-400">(re-run protection)</span></span>
-        </label>
-      </div>
+      <details class="mb-4 text-sm">
+        <summary class="text-gray-500 hover:text-gray-700 cursor-pointer">Advanced options (defaults are fine for most imports)</summary>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-700 mt-3">
+          <label class="flex items-start gap-2">
+            <input type="checkbox" id="opt-create-terms" checked class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+            <span>Auto-create missing terms as draft</span>
+          </label>
+          <label class="flex items-start gap-2">
+            <input type="checkbox" id="opt-create-faculty" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+            <span>Create unknown faculty as Archived <span class="text-gray-400">(off = typos become errors)</span></span>
+          </label>
+          <label class="flex items-start gap-2">
+            <input type="checkbox" id="opt-sentiment" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+            <span>Compute sentiment for old comments <span class="text-gray-400">(slow first run)</span></span>
+          </label>
+          <label class="flex items-start gap-2">
+            <input type="checkbox" id="opt-skip-dupes" class="mt-1 rounded border-gray-300 text-brand focus:ring-brand">
+            <span>Skip rows identical to existing records</span>
+          </label>
+        </div>
+      </details>
 
-      <div class="flex gap-2">
-        <button type="button" id="hist-validate-btn" class="btn-secondary text-sm" disabled>Validate (dry-run)</button>
-        <button type="button" id="hist-commit-btn" class="btn-primary text-sm" disabled>Import</button>
-      </div>
+      <p id="hist-action-hint" class="text-xs text-gray-400 mt-2">Click Import and choose your file.</p>
     </div>
 
-    <!-- STEP 3: results -->
+    <!-- STEP 4: result + import -->
     <div id="hist-result-card" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
       <h2 id="hist-result-title" class="font-semibold text-gray-800 mb-1">Result</h2>
       <p id="hist-result-summary" class="text-sm text-gray-600 mb-3"></p>
       <div id="hist-result-warnings" class="hidden mb-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3"></div>
-      <div id="hist-result-errors" class="hidden mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 max-h-64 overflow-y-auto"></div>
+      <div class="hidden mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 max-h-64 overflow-y-auto" id="hist-result-errors-box">
+        <strong>Fix these rows in Excel, then Import again:</strong>
+        <table class="w-full text-left mt-2">
+          <thead>
+            <tr class="border-b border-red-200">
+              <th class="py-1 pr-4 font-semibold w-16 align-top">Row</th>
+              <th class="py-1 font-semibold align-top">Issue</th>
+            </tr>
+          </thead>
+          <tbody id="hist-result-errors"></tbody>
+        </table>
+      </div>
+      <div id="hist-commit-wrap" class="hidden mb-4">
+        <button type="button" id="hist-commit-btn" class="btn-primary text-sm">Import <span id="hist-commit-count"></span> rows</button>
+        <p class="text-xs text-gray-400 mt-2">Writes to the database. Terms are created as draft; no logins are touched.</p>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
           <thead id="hist-preview-head"></thead>
@@ -85,8 +160,8 @@
 
     <!-- Faculty reference -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-      <h2 class="font-semibold text-gray-800 mb-1">Faculty name reference</h2>
-      <p class="text-sm text-gray-500 mb-3">Copy these exactly into the <code class="bg-gray-100 px-1 rounded">faculty_name</code> column.</p>
+      <h2 class="font-semibold text-gray-800 mb-1">Faculty names - click to copy</h2>
+      <p class="text-sm text-gray-500 mb-3">Paste exactly into the <code class="bg-gray-100 px-1 rounded">faculty_name</code> column.</p>
       <div id="hist-faculty-list" class="text-sm text-gray-700 flex flex-wrap gap-2"></div>
     </div>
 

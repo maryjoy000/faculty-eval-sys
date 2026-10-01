@@ -81,6 +81,11 @@ def set_current_period():
                 "error": f"Cannot add an evaluation period to closed term {term.label}."
             }), 400
 
+        if term.status == "archived":
+            return jsonify({
+                "error": f"Cannot add an evaluation period to archived term {term.label}."
+            }), 400
+
     period = EvaluationPeriod(
         start_date=start,
         end_date=end,

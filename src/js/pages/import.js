@@ -1,6 +1,6 @@
 // ============================================
 // HISTORICAL IMPORT PAGE (Admin)
-// Upload past evaluations (.xlsx/.csv) -> Validate (dry-run) -> Import.
+// Guided flow: Download -> Fill -> Upload and Check -> Import.
 // Same engine as backend/import_historical.py, via /api/imports/*.
 // ============================================
 
@@ -36,12 +36,14 @@ function checkXlsx() {
 }
 
 // ============================================
-// STATE
+// STATE + STEP PILLS
 // ============================================
 
 let parsedRows = [];      // array of objects, headers as found in file
 let parsedFileName = "";
 let lastValidatedKey = ""; // fingerprint of rows+options at last 0-error validate
+let templateDownloaded = false;
+let importFinished = false;
 
 function readOptions() {
   return {
@@ -57,17 +59,45 @@ function fingerprintRows() {
   return JSON.stringify({ rows: parsedRows, options: readOptions(), file: parsedFileName });
 }
 
-function refreshButtons() {
-  const hasRows = parsedRows.length > 0;
-  document.getElementById("hist-validate-btn").disabled = !hasRows;
-  // Commit only right after a clean validate of the exact same payload.
-  document.getElementById("hist-commit-btn").disabled =
-    !(hasRows && lastValidatedKey !== "" && lastValidatedKey === fingerprintRows());
+function setStepPill(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const base = "px-3 py-1.5 rounded-full font-medium ";
+  if (state === "done") {
+    el.className = base + "bg-green-100 text-green-700";
+  } else if (state === "active") {
+    el.className = base + "bg-brand text-white";
+  } else {
+    el.className = base + "bg-gray-100 text-gray-400";
+  }
+}
+
+function refreshSteps() {
+  const hasFile = parsedRows.length > 0;
+  const validated = hasFile && lastValidatedKey !== "" && lastValidatedKey === fingerprintRows();
+
+  setStepPill("hist-step-1", templateDownloaded ? "done" : "active");
+  setStepPill("hist-step-2", !templateDownloaded ? "todo" : hasFile ? "done" : "active");
+  setStepPill("hist-step-3", !hasFile ? "todo" : validated ? "done" : "active");
+  setStepPill("hist-step-4", importFinished ? "done" : validated ? "active" : "todo");
+
+  document.getElementById("hist-import-btn").disabled = false;
+
+  const hint = document.getElementById("hist-action-hint");
+  if (!hasFile) {
+    hint.textContent = "Click Import and choose your file.";
+  } else if (validated) {
+    hint.textContent = "Check passed - review the result below, then confirm.";
+  } else {
+    hint.textContent = "File loaded - checking it now (safe, nothing is saved yet).";
+  }
 }
 
 function markPayloadDirty() {
   lastValidatedKey = "";
-  refreshButtons();
+  document.getElementById("hist-result-card").classList.add("hidden");
+  document.getElementById("hist-commit-wrap").classList.add("hidden");
+  refreshSteps();
 }
 
 // ============================================
@@ -84,7 +114,7 @@ const TEMPLATE_EXAMPLES = {
 async function downloadTemplate(typeCode) {
   const status = document.getElementById("template-status");
   try {
-    status.textContent = `Building ${typeCode} template…`;
+    status.textContent = `Building ${typeCode} template...`;
     const parts = await apiGet(`/evaluation-criteria/${typeCode}`);
     const codes = [];
     parts.forEach((part) => {
@@ -111,7 +141,9 @@ async function downloadTemplate(typeCode) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Historical");
     XLSX.writeFile(workbook, `template_${typeCode}_2025-2026.xlsx`);
-    status.textContent = `${typeCode}: ${codes.length} question columns. Replace the example rows with real data.`;
+    templateDownloaded = true;
+    status.textContent = `${typeCode}: downloaded (${codes.length} rating columns). Now fill it in Excel.`;
+    refreshSteps();
   } catch (error) {
     status.textContent = "";
     showError(error);
@@ -163,14 +195,13 @@ function handleImportFile(file) {
         .filter((row) => Object.values(row).some((v) => v !== ""));
 
       parsedFileName = file.name;
-      document.getElementById("hist-file-name").textContent =
-        `${file.name} — ${parsedRows.length} data row(s)`;
       markPayloadDirty();
       if (!parsedRows.length) {
         showToast("No data rows found in the first worksheet.", "warning");
         return;
       }
-      showToast(`Loaded ${parsedRows.length} row(s). Click Validate first.`, "success");
+      // Check immediately - checking never saves anything.
+      checkNow();
     } catch (error) {
       showError(error);
     }
@@ -183,6 +214,12 @@ function handleImportFile(file) {
 // RESULTS RENDERING
 // ============================================
 
+function parseRowError(text) {
+  const match = /^row (\d+):\s*([\s\S]*)$/.exec(String(text || ""));
+  if (match) return { row: match[1], issue: match[2] };
+  return { row: "-", issue: String(text || "") };
+}
+
 function renderSummary(summary, mode) {
   const card = document.getElementById("hist-result-card");
   card.classList.remove("hidden");
@@ -190,52 +227,84 @@ function renderSummary(summary, mode) {
   const title = document.getElementById("hist-result-title");
   const summaryEl = document.getElementById("hist-result-summary");
   const warningsEl = document.getElementById("hist-result-warnings");
-  const errorsEl = document.getElementById("hist-result-errors");
+  const errorsBox = document.getElementById("hist-result-errors-box");
+  const errorsBody = document.getElementById("hist-result-errors");
+  const commitWrap = document.getElementById("hist-commit-wrap");
 
-  const action = mode === "commit" ? "Import" : "Validation (nothing was written)";
-  title.textContent = mode === "commit" ? "Import Result" : "Validation Result";
-  summaryEl.innerHTML =
-    `${escapeHtml(action)} — ` +
-    `<strong>${summary.inserted}</strong> valid, ` +
-    `<strong>${summary.skipped || 0}</strong> skipped, ` +
-    `<strong>${(summary.errors || []).length}</strong> error(s). ` +
-    `Terms to create: <strong>${summary.terms_created || 0}</strong>.`;
-
+  const errors = summary.errors || [];
   const warnings = summary.warnings || [];
+
+  if (mode === "commit") {
+    title.textContent = errors.length ? "Import finished with errors" : "Import complete";
+    summaryEl.innerHTML =
+      `Saved <strong>${summary.inserted}</strong> evaluation(s)` +
+      (summary.skipped ? `, skipped <strong>${summary.skipped}</strong>` : "") +
+      (errors.length ? `, <strong>${errors.length}</strong> row(s) failed` : "") +
+      `. Terms created: <strong>${summary.terms_created || 0}</strong>.`;
+    commitWrap.classList.add("hidden");
+    if (!errors.length && summary.inserted > 0) {
+      importFinished = true;
+      showToast(`Imported ${summary.inserted} evaluation(s).`, "success");
+    } else if (errors.length) {
+      showToast("Import finished with errors - valid rows were saved.", "warning");
+    }
+  } else {
+    title.textContent = "Check Result (nothing saved yet)";
+    summaryEl.innerHTML =
+      `<strong>${summary.inserted}</strong> row(s) ready` +
+      (summary.skipped ? `, <strong>${summary.skipped}</strong> would be skipped` : "") +
+      (errors.length ? `, <strong>${errors.length}</strong> need fixing` : "") +
+      `. Terms to create: <strong>${summary.terms_created || 0}</strong>.`;
+    if (!errors.length) {
+      lastValidatedKey = fingerprintRows();
+      document.getElementById("hist-commit-count").textContent = `${summary.inserted}`;
+      commitWrap.classList.remove("hidden");
+      showToast(`All good - ${summary.inserted} row(s) ready. Click Import.`, "success");
+    } else {
+      commitWrap.classList.add("hidden");
+      showToast("Fix the rows below, then Import again.", "warning");
+    }
+  }
+
   if (warnings.length) {
     warningsEl.classList.remove("hidden");
     warningsEl.innerHTML = "<strong>Notes:</strong><br>" +
-      warnings.slice(0, 10).map((w) => `• ${escapeHtml(w)}`).join("<br>") +
-      (warnings.length > 10 ? `<br>…and ${warnings.length - 10} more.` : "");
+      warnings.slice(0, 10).map((w) => `- ${escapeHtml(w)}`).join("<br>") +
+      (warnings.length > 10 ? `<br>...and ${warnings.length - 10} more.` : "");
   } else {
     warningsEl.classList.add("hidden");
     warningsEl.innerHTML = "";
   }
 
-  const errors = summary.errors || [];
   if (errors.length) {
-    errorsEl.classList.remove("hidden");
-    errorsEl.innerHTML = "<strong>Fix these rows, then re-validate:</strong><br>" +
-      errors.slice(0, 50).map((e) => `• ${escapeHtml(e)}`).join("<br>") +
-      (errors.length > 50 ? `<br>…and ${errors.length - 50} more.` : "");
+    errorsBox.classList.remove("hidden");
+    errorsBody.innerHTML = errors.slice(0, 50).map((e) => {
+      const parsed = parseRowError(e);
+      return `<tr class="border-b border-red-100 last:border-0">` +
+        `<td class="py-1 pr-4 font-semibold whitespace-nowrap align-top">${escapeHtml(parsed.row)}</td>` +
+        `<td class="py-1 align-top">${escapeHtml(parsed.issue)}</td></tr>`;
+    }).join("") + (errors.length > 50
+      ? `<tr><td colspan="2" class="py-1 text-red-500">...and ${errors.length - 50} more.</td></tr>`
+      : "");
   } else {
-    errorsEl.classList.add("hidden");
-    errorsEl.innerHTML = "";
+    errorsBox.classList.add("hidden");
+    errorsBody.innerHTML = "";
   }
 
-  // Preview: header + first 8 parsed rows (what was sent).
+  // Preview: first 8 parsed rows (what was sent).
   const head = document.getElementById("hist-preview-head");
   const body = document.getElementById("hist-preview-body");
   if (parsedRows.length) {
     const cols = Object.keys(parsedRows[0]).slice(0, 10);
+    const extra = Object.keys(parsedRows[0]).length > 10;
     head.innerHTML = `<tr class="border-b border-gray-300 text-gray-700">` +
-      cols.map((c) => `<th class="py-2 pr-4 font-semibold">${escapeHtml(c)}</th>`).join("") +
-      (Object.keys(parsedRows[0]).length > 10 ? `<th class="py-2 pr-4 font-semibold">…</th>` : "") +
+      cols.map((c) => `<th class="py-2 pr-4 font-semibold align-top">${escapeHtml(c)}</th>`).join("") +
+      (extra ? `<th class="py-2 pr-4 font-semibold align-top">...</th>` : "") +
       `</tr>`;
     body.innerHTML = parsedRows.slice(0, 8).map((row) =>
       `<tr class="border-b border-gray-200 last:border-0">` +
-      cols.map((c) => `<td class="py-2 pr-4 text-gray-600">${escapeHtml(row[c])}</td>`).join("") +
-      (Object.keys(row).length > 10 ? `<td class="py-2 pr-4 text-gray-400">…</td>` : "") +
+      cols.map((c) => `<td class="py-2 pr-4 text-gray-600 align-top">${escapeHtml(row[c])}</td>`).join("") +
+      (Object.keys(row).length > 10 ? `<td class="py-2 pr-4 text-gray-400 align-top">...</td>` : "") +
       `</tr>`
     ).join("");
   } else {
@@ -243,36 +312,29 @@ function renderSummary(summary, mode) {
     body.innerHTML = "";
   }
 
+  refreshSteps();
   card.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // ============================================
-// VALIDATE + COMMIT
+// CHECK + SAVE
 // ============================================
 
-async function validateNow() {
+async function checkNow() {
   if (!parsedRows.length) return;
-  const btn = document.getElementById("hist-validate-btn");
-  btn.disabled = true;
+  const hint = document.getElementById("hist-action-hint");
+  hint.textContent = `Checking ${parsedFileName} (${parsedRows.length} rows) - nothing is saved yet.`;
   try {
     const summary = await apiPost("/imports/historical/validate", {
       rows: parsedRows,
       options: readOptions(),
       filename: parsedFileName,
     });
-    const clean = (summary.errors || []).length === 0;
-    if (clean) {
-      lastValidatedKey = fingerprintRows();
-      showToast(`Validation passed — ${summary.inserted} row(s) ready to import.`, "success");
-    } else {
-      lastValidatedKey = "";
-      showToast("Validation found errors — fix the rows and re-validate.", "warning");
-    }
     renderSummary(summary, "validate");
   } catch (error) {
     showError(error);
   } finally {
-    refreshButtons();
+    refreshSteps();
   }
 }
 
@@ -280,7 +342,7 @@ async function commitNow() {
   if (!parsedRows.length) return;
   showConfirmModal({
     title: "Import Historical Data?",
-    message: `This will write ${parsedRows.length} row(s) into the database (terms created as draft, no logins touched). Continue?`,
+    message: `This will save ${parsedRows.length} row(s). Terms are created as draft; no logins are touched. Continue?`,
     confirmLabel: "Import",
     isDestructive: false,
     onConfirm: async () => {
@@ -292,22 +354,17 @@ async function commitNow() {
         });
         lastValidatedKey = "";
         renderSummary(summary, "commit");
-        if ((summary.errors || []).length === 0) {
-          showToast(`Imported ${summary.inserted} evaluation(s).`, "success");
-        } else {
-          showToast("Import finished with errors — valid rows were saved.", "warning");
-        }
       } catch (error) {
         showError(error);
       } finally {
-        refreshButtons();
+        refreshSteps();
       }
     },
   });
 }
 
 // ============================================
-// FACULTY REFERENCE
+// FACULTY REFERENCE (click to copy)
 // ============================================
 
 async function loadFacultyReference() {
@@ -315,12 +372,25 @@ async function loadFacultyReference() {
   try {
     const faculty = await apiGet("/faculty");
     if (!Array.isArray(faculty) || !faculty.length) {
-      container.innerHTML = `<span class="text-gray-400">No faculty found — add them in Faculty Management first.</span>`;
+      container.innerHTML = `<span class="text-gray-400">No faculty found - add them in Faculty Management first.</span>`;
       return;
     }
     container.innerHTML = faculty.map((f) =>
-      `<span class="bg-gray-100 border border-gray-200 rounded-full px-3 py-1">${escapeHtml(f.name)}</span>`
+      `<button type="button" data-faculty-name="${escapeHtml(f.name)}" title="Click to copy"` +
+      ` class="bg-gray-100 border border-gray-200 rounded-full px-3 py-1 hover:bg-brand-light hover:border-brand">` +
+      `${escapeHtml(f.name)}</button>`
     ).join("");
+    container.querySelectorAll("[data-faculty-name]").forEach((chip) => {
+      chip.addEventListener("click", async () => {
+        const name = chip.dataset.facultyName;
+        try {
+          await navigator.clipboard.writeText(name);
+          showToast(`Copied: ${name}`, "success");
+        } catch (error) {
+          showToast(name, "success");
+        }
+      });
+    });
   } catch (error) {
     container.innerHTML = `<span class="text-gray-400">Could not load faculty list.</span>`;
   }
@@ -333,7 +403,7 @@ async function loadFacultyReference() {
 function attachImportListeners() {
   const fileInput = document.getElementById("hist-import-input");
 
-  document.getElementById("hist-choose-btn").addEventListener("click", () => {
+  document.getElementById("hist-import-btn").addEventListener("click", () => {
     fileInput.click();
   });
 
@@ -342,7 +412,6 @@ function attachImportListeners() {
     fileInput.value = "";
   });
 
-  document.getElementById("hist-validate-btn").addEventListener("click", validateNow);
   document.getElementById("hist-commit-btn").addEventListener("click", commitNow);
 
   document.querySelectorAll("[data-template-type]").forEach((btn) => {
@@ -360,7 +429,7 @@ function attachImportListeners() {
 async function initializeHistoricalImport() {
   mountPageContent();
   attachImportListeners();
-  refreshButtons();
+  refreshSteps();
   await loadFacultyReference();
 }
 

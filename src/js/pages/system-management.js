@@ -752,6 +752,9 @@ function termStatusBadge(status) {
   if (status === "closed") {
     return `<span class="text-gray-400 font-medium">Closed</span>`;
   }
+  if (status === "archived") {
+    return `<span class="text-gray-600 font-medium">Archived</span>`;
+  }
   return `<span class="text-amber-600 font-medium">Draft</span>`;
 }
 
@@ -773,13 +776,16 @@ function renderTermsTable() {
   tableBody.innerHTML = termsCache
     .map((term) => {
       let actionHtml = "";
+      const archiveBtn = `<button type="button" class="archive-term-btn text-amber-600 hover:underline" data-term-id="${term.id}">Archive</button>`;
 
       if (term.status === "draft") {
-        actionHtml = `<button type="button" class="open-term-btn text-brand hover:underline" data-term-id="${term.id}">Open</button>`;
+        actionHtml = `<button type="button" class="open-term-btn text-brand hover:underline" data-term-id="${term.id}">Open</button> ${archiveBtn}`;
       } else if (term.status === "open") {
         actionHtml = `<button type="button" class="close-term-btn text-red-500 hover:underline" data-term-id="${term.id}">End Term</button>`;
+      } else if (term.status === "archived") {
+        actionHtml = `<button type="button" class="reopen-term-btn text-brand hover:underline" data-term-id="${term.id}">Reopen</button> <button type="button" class="delete-term-btn text-red-500 hover:underline" data-term-id="${term.id}">Delete</button>`;
       } else {
-        actionHtml = `<button type="button" class="reopen-term-btn text-brand hover:underline" data-term-id="${term.id}">Reopen</button>`;
+        actionHtml = `<button type="button" class="reopen-term-btn text-brand hover:underline" data-term-id="${term.id}">Reopen</button> ${archiveBtn}`;
       }
 
       return `
@@ -836,6 +842,56 @@ function renderTermsTable() {
             await apiPut(`/school-terms/${term.id}/close`, {});
             await loadTerms();
             showToast("Term ended.", "success");
+          } catch (error) {
+            showError(error);
+          }
+        },
+      });
+    });
+  });
+
+  document.querySelectorAll(".archive-term-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const term = termsCache.find(
+        (t) => String(t.id) === String(btn.dataset.termId)
+      );
+      if (!term) return;
+
+      showConfirmModal({
+        title: "Archive This Term?",
+        message: `"${term.school_year} ${term.semester}" will be marked as archived. Submissions stay stopped and reports stay readable. You can still reopen it later, or delete it once it holds no evaluations.`,
+        confirmLabel: "Archive",
+        isDestructive: false,
+        onConfirm: async () => {
+          try {
+            await apiPut(`/school-terms/${term.id}/archive`, {});
+            await loadTerms();
+            showToast("Term archived.", "success");
+          } catch (error) {
+            showError(error);
+          }
+        },
+      });
+    });
+  });
+
+  document.querySelectorAll(".delete-term-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const term = termsCache.find(
+        (t) => String(t.id) === String(btn.dataset.termId)
+      );
+      if (!term) return;
+
+      showConfirmModal({
+        title: "Delete This Term?",
+        message: `"${term.school_year} ${term.semester}" will be permanently deleted. This only works while the term holds no evaluations.`,
+        confirmLabel: "Delete",
+        isDestructive: true,
+        onConfirm: async () => {
+          try {
+            await apiDelete(`/school-terms/${term.id}`);
+            await loadTerms();
+            showToast("Term deleted.", "success");
           } catch (error) {
             showError(error);
           }

@@ -44,6 +44,11 @@ def resolve_submission_term(period):
                 "error": f"The {term.label} evaluation period is closed."
             }), 403)
 
+        if term and term.status == "archived":
+            return None, (jsonify({
+                "error": f"The {term.label} evaluation period is archived."
+            }), 403)
+
         return period.term_id, None
 
     open_term = SchoolTerm.query.filter_by(status="open").first()

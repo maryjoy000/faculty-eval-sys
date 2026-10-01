@@ -3,6 +3,9 @@ from flask_login import current_user
 
 from ..extensions import db
 from ..models.school_term import SchoolTerm, TERM_STATUSES, TERM_SEMESTERS
+from ..models.evaluation import Evaluation
+from ..models.evaluation_period import EvaluationPeriod
+from ..models.weighting import EvaluationWeighting
 from ..utils.decorators import roles_required
 from ..services.activity_service import log_activity
 
@@ -146,7 +149,76 @@ def reopen_term(term_id):
 
     log_activity(
         f"Reopened school term {term.label}",
-        user_id=current_user.id,
+        user_id=current_user.id
     )
 
     return jsonify(term.to_dict()), 200
+
+
+@terms_bp.route("/<int:term_id>/archive", methods=["PUT"])
+@roles_required("admin")
+def archive_term(term_id):
+    term = SchoolTerm.query.get_or_404(term_id)
+
+    if term.status == "archived":
+        return jsonify(term.to_dict()), 200
+
+    if term.status == "open":
+        return jsonify({
+            "error": (
+                f"End {term.label} first — only draft or closed "
+                "terms may be archived."
+            )
+        }), 400
+
+    term.status = "archived"
+    db.session.commit()
+
+    log_activity(
+        f"Archived school term {term.label}",
+        user_id=current_user.id
+    )
+
+    return jsonify(term.to_dict()), 200
+
+
+@terms_bp.route("/<int:term_id>", methods=["DELETE"])
+@roles_required("admin")
+def delete_term(term_id):
+    term = SchoolTerm.query.get_or_404(term_id)
+
+    if term.status != "archived":
+        return jsonify({
+            "error": "Only archived terms may be deleted. Archive it first."
+        }), 400
+
+    evaluation_count = (
+        Evaluation.query
+        .filter_by(term_id=term.id)
+        .count()
+    )
+
+    if evaluation_count:
+        return jsonify({
+            "error": (
+                f"Cannot delete {term.label} — it still holds "
+                f"{evaluation_count} evaluation(s)."
+            )
+        }), 400
+
+    # Term-scoped configuration goes with the term; real evaluation
+    # data (checked above) is never deleted here.
+    EvaluationWeighting.query.filter_by(term_id=term.id).delete()
+    EvaluationPeriod.query.filter_by(term_id=term.id).delete()
+
+    label = term.label
+    db.session.delete(term)
+    db.session.commit()
+
+    log_activity(
+        f"Deleted school term {label}",
+        user_id=current_user.id
+    )
+    db.session.commit()
+
+    return jsonify({"message": f"Deleted school term {label}."}), 200

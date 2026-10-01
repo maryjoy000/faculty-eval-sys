@@ -40,6 +40,34 @@ function renderHrStatCards(data) {
   `).join("");
 }
 
+let hrPendingCache = [];
+let hrCompletedCache = [];
+
+var hrPendingPager = null;
+var hrCompletedPager = null;
+
+function getHrPendingPager() {
+  if (!hrPendingPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      hrPendingPager = TablePagination.create({ defaultPerPage: 5, pageSizeOptions: [5, 10, 25, 50] });
+    } else {
+      hrPendingPager = null;
+    }
+  }
+  return hrPendingPager;
+}
+
+function getHrCompletedPager() {
+  if (!hrCompletedPager) {
+    if (typeof TablePagination !== "undefined" && TablePagination.create) {
+      hrCompletedPager = TablePagination.create({ defaultPerPage: 5, pageSizeOptions: [5, 10, 25, 50] });
+    } else {
+      hrCompletedPager = null;
+    }
+  }
+  return hrCompletedPager;
+}
+
 function renderEvaluationLists(data) {
   const pendingContainer =
     document.getElementById("pending-evaluations-list");
@@ -49,16 +77,45 @@ function renderEvaluationLists(data) {
 
   if (!pendingContainer || !completedContainer) return;
 
-  const pending = data.evaluations.filter(
+  hrPendingCache = data.evaluations.filter(
     (faculty) => !faculty.completed
   );
 
-  const completed = data.evaluations.filter(
+  hrCompletedCache = data.evaluations.filter(
     (faculty) => faculty.completed
   );
 
-  pendingContainer.innerHTML = pending.length
-    ? pending.map((faculty) => `
+  const pendingPager = getHrPendingPager();
+  if (pendingPager) pendingPager.reset();
+
+  const completedPager = getHrCompletedPager();
+  if (completedPager) completedPager.reset();
+
+  renderHrPendingPage();
+  renderHrCompletedPage();
+}
+
+function renderHrPendingPage() {
+  const pendingContainer =
+    document.getElementById("pending-evaluations-list");
+  if (!pendingContainer) return;
+
+  const paginationContainer = document.getElementById("pending-evaluations-pagination");
+  const pager = getHrPendingPager();
+
+  if (!hrPendingCache.length) {
+    pendingContainer.innerHTML = `
+        <p class="text-sm text-gray-400">
+          All active faculty have been evaluated.
+        </p>
+      `;
+    if (paginationContainer) paginationContainer.innerHTML = "";
+    return;
+  }
+
+  const pageItems = pager ? pager.paginate(hrPendingCache) : hrPendingCache;
+
+  pendingContainer.innerHTML = pageItems.map((faculty) => `
         <div class="flex items-center justify-between py-2 border-b border-gray-100 text-sm">
           <span class="text-gray-700">${faculty.name}</span>
 
@@ -69,15 +126,36 @@ function renderEvaluationLists(data) {
             Evaluate →
           </a>
         </div>
-      `).join("")
-    : `
+      `).join("");
+
+  if (pager) {
+    pager.render("pending-evaluations-pagination", hrPendingCache.length, renderHrPendingPage);
+  } else if (paginationContainer) {
+    paginationContainer.innerHTML = "";
+  }
+}
+
+function renderHrCompletedPage() {
+  const completedContainer =
+    document.getElementById("completed-evaluations-list");
+  if (!completedContainer) return;
+
+  const paginationContainer = document.getElementById("completed-evaluations-pagination");
+  const pager = getHrCompletedPager();
+
+  if (!hrCompletedCache.length) {
+    completedContainer.innerHTML = `
         <p class="text-sm text-gray-400">
-          All active faculty have been evaluated.
+          No completed evaluations yet.
         </p>
       `;
+    if (paginationContainer) paginationContainer.innerHTML = "";
+    return;
+  }
 
-  completedContainer.innerHTML = completed.length
-    ? completed.map((faculty) => `
+  const pageItems = pager ? pager.paginate(hrCompletedCache) : hrCompletedCache;
+
+  completedContainer.innerHTML = pageItems.map((faculty) => `
         <div class="flex items-center justify-between py-2 border-b border-gray-100 text-sm">
           <span class="text-gray-700">${faculty.name}</span>
 
@@ -85,12 +163,13 @@ function renderEvaluationLists(data) {
             ${Number(faculty.rating_pct || 0).toFixed(2)}%
           </span>
         </div>
-      `).join("")
-    : `
-        <p class="text-sm text-gray-400">
-          No completed evaluations yet.
-        </p>
-      `;
+      `).join("");
+
+  if (pager) {
+    pager.render("completed-evaluations-pagination", hrCompletedCache.length, renderHrCompletedPage);
+  } else if (paginationContainer) {
+    paginationContainer.innerHTML = "";
+  }
 }
 
 async function loadHrDashboard() {

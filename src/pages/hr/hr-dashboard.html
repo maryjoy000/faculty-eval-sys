@@ -65,16 +65,18 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
             <h2 class="font-semibold text-gray-800">Pending  Evaluations</h2>
             <p class="text-sm text-gray-500 mb-4">Faculty members who still need an evaluation this term.</p>
-            <div id="pending-evaluations-list"></div>
+            <div id="pending-evaluations-list" class="flex-1"></div>
+            <div id="pending-evaluations-pagination" class="mt-auto pt-2"></div>
         </div>
 
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
             <h2 class="font-semibold text-gray-800">Completed Evaluations</h2>
             <p class="text-sm text-gray-500 mb-4">&nbsp;</p>
-            <div id="completed-evaluations-list"></div>
+            <div id="completed-evaluations-list" class="flex-1"></div>
+            <div id="completed-evaluations-pagination" class="mt-auto pt-2"></div>
         </div>
 
     </div>
@@ -91,6 +93,7 @@
   <script src="../../js/components/hr-sidebar.js"></script>
   <script src="../../js/components/confirm-modal.js"></script>
   <script src="../../js/data/faculty-roster.js"></script>
+  <script src="../../js/utils/pagination.js"></script>
   <script src="../../assets/js/xlsx.full.min.js"></script>
   <script src="../../js/pages/hr-dashboard.js"></script>
 </body>

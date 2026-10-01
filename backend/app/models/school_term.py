@@ -3,8 +3,9 @@ from datetime import datetime
 from ..extensions import db
 
 #: Allowed lifecycle states. Draft = being set up, open = live,
-#: closed = historical (read-only except for admin corrections).
-TERM_STATUSES = ("draft", "open", "closed")
+#: closed = historical (read-only except for admin corrections),
+#: archived = hidden historical, deletable once unused.
+TERM_STATUSES = ("draft", "open", "closed", "archived")
 
 #: Term labels, matching System Management conventions.
 TERM_SEMESTERS = ("1st", "2nd", "3rd")
@@ -16,7 +17,9 @@ class SchoolTerm(db.Model):
     Terms are created as drafts, opened when live, and closed when the
     period ends. Closed terms are historical: Phase 2 blocks new
     submissions and criteria/weighting edits against them (admin-only
-    corrections stay possible). Terms are never deleted so history is
+    corrections stay possible). Closed terms may be archived, and
+    archived terms with no evaluations may be deleted. Terms are never
+    deleted while they still hold evaluation data so history is
     never destroyed.
     """
     __tablename__ = "school_terms"
