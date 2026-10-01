@@ -722,7 +722,7 @@ function buildSchoolYearOptions() {
   const currentYear = new Date().getFullYear();
   const options = [];
 
-  for (let start = currentYear - 5; start <= currentYear + 5; start++) {
+  for (let start = currentYear - 10; start <= currentYear + 10; start++) {
     options.push(`${start}-${start + 1}`);
   }
 
