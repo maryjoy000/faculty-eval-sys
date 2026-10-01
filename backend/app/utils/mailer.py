@@ -49,6 +49,9 @@ def send_email(to_address, subject, body_text):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            # Default "Python-urllib/*" agents get challenged by bot
+            # protection in front of the API (HTTP 403); identify plainly.
+            "User-Agent": "FES-Backend/1.0 (+https://headwaters-fes.tech)",
         },
         method="POST",
     )
