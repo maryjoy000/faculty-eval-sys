@@ -21,7 +21,7 @@ const statCards = [
   {
     label: "Faculty Members",
     value: "0",
-    note: "Active this semester"
+    note: "Active this term"
   },
   {
     label: "Avg. Sentiment Score",

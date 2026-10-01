@@ -2,7 +2,7 @@
 // SHARED: Global School-Term Filter (Admin)
 // ============================================
 // The topbar dropdown (rendered by the admin sidebar shell) lets Admin
-// scope Dashboard, Analytics, and Reports to one School Year/Semester.
+// scope Dashboard, Analytics, and Reports to one School Year/Term.
 // "All history" (default when no term is open) keeps legacy behavior.
 //
 // Pages opt in by calling initGlobalTermFilter(reloadFn). Pages without

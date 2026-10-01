@@ -50,12 +50,12 @@ def update_system_settings():
     if "semester" in data:
         if data["semester"] not in ("1st", "2nd", "3rd"):
             return jsonify({
-                "error": "semester must be 1st, 2nd, or 3rd"
+                "error": "term must be 1st, 2nd, or 3rd"
             }), 400
 
         if settings.semester != data["semester"]:
             changes.append(
-                f"semester from {settings.semester} to {data['semester']}"
+                f"term from {settings.semester} to {data['semester']}"
             )
             settings.semester = data["semester"]
 

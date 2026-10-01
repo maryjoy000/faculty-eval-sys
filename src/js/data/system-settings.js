@@ -79,9 +79,9 @@ async function saveSystemSettings(newSettings) {
 }
 
 function getSemesterLabel(semesterCode) {
-  if (semesterCode === "1st") return "1st Semester";
-  if (semesterCode === "3rd") return "3rd Semester";
-  return "2nd Semester";
+  if (semesterCode === "1st") return "1st Term";
+  if (semesterCode === "3rd") return "3rd Term";
+  return "2nd Term";
 }
 
 function getAcademicYearDisplay() {

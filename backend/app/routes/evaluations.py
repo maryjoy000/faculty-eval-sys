@@ -555,7 +555,7 @@ def submit_evaluation():
                 "error": "No open evaluation period for this evaluation type"
             }), 403
 
-    # Every evaluation records its School Year/Semester: the linked
+    # Every evaluation records its School Year/Term: the linked
     # period's term, else the open term, else unscoped legacy (None).
     # Closed terms reject new submissions outright.
     submission_term_id, term_error = resolve_submission_term(period)

@@ -38,12 +38,12 @@ def create_term():
 
     if not school_year or not semester:
         return jsonify({
-            "error": "school_year and semester are required"
+            "error": "school_year and term are required"
         }), 400
 
     if semester not in TERM_SEMESTERS:
         return jsonify({
-            "error": f"semester must be one of {list(TERM_SEMESTERS)}"
+            "error": f"term must be one of {list(TERM_SEMESTERS)}"
         }), 400
 
     existing = SchoolTerm.query.filter_by(

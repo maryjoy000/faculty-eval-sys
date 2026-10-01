@@ -17,7 +17,7 @@ class Evaluation(db.Model):
 
     evaluation_period_id = db.Column(db.Integer, db.ForeignKey("evaluation_periods.id"), nullable=True)
 
-    # The School Year/Semester this evaluation belongs to. NULL means
+    # The School Year/Term this evaluation belongs to. NULL means
     # pre-terms legacy history, which reporting treats as unscoped.
     term_id = db.Column(db.Integer, db.ForeignKey("school_terms.id"), nullable=True)
 

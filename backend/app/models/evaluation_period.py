@@ -11,7 +11,7 @@ class EvaluationPeriod(db.Model):
     end_date = db.Column(db.Date, nullable=False)
     applies_to_type_id = db.Column(db.Integer, db.ForeignKey("evaluation_types.id"), nullable=True)
 
-    # The School Year/Semester this period belongs to. NULL = legacy
+    # The School Year/Term this period belongs to. NULL = legacy
     # period created before terms existed; behaves exactly as before.
     term_id = db.Column(db.Integer, db.ForeignKey("school_terms.id"), nullable=True)
 

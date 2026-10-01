@@ -216,7 +216,7 @@ const DEFAULT_CRITERIA = {
       partNumber: 2,
       title: "Seminars and Trainings Attended",
       questions: [
-        { id: "p4", text: "[Placeholder] Attended required school-organized seminars/trainings this semester." },
+        { id: "p4", text: "[Placeholder] Attended required school-organized seminars/trainings this term." },
         { id: "p5", text: "[Placeholder] Applies learnings from trainings to teaching practice." },
         { id: "p6", text: "[Placeholder] Actively participates in professional development opportunities." }
       ]

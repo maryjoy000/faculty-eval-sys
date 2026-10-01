@@ -6,12 +6,12 @@ from ..extensions import db
 #: closed = historical (read-only except for admin corrections).
 TERM_STATUSES = ("draft", "open", "closed")
 
-#: Semester labels, matching System Management conventions.
+#: Term labels, matching System Management conventions.
 TERM_SEMESTERS = ("1st", "2nd", "3rd")
 
 
 class SchoolTerm(db.Model):
-    """A School Year / Semester period with a managed lifecycle.
+    """A School Year / Term period with a managed lifecycle.
 
     Terms are created as drafts, opened when live, and closed when the
     period ends. Closed terms are historical: Phase 2 blocks new

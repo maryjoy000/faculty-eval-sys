@@ -511,7 +511,7 @@ function populateWeightingTermSelect() {
     termsCache
       .map(
         (term) =>
-          `<option value="${term.id}">${term.school_year} ${term.semester} Semester (${term.status})</option>`
+          `<option value="${term.id}">${term.school_year} ${term.semester} Term (${term.status})</option>`
       )
       .join("");
 
@@ -538,7 +538,7 @@ function updateWeightingScopeMsg() {
   const term = termsCache.find((t) => String(t.id) === String(termId));
 
   msg.textContent = term
-    ? `Editing weighting for ${term.school_year} ${term.semester} Semester.`
+    ? `Editing weighting for ${term.school_year} ${term.semester} Term.`
     : "Editing weighting for the selected term.";
 }
 
@@ -696,7 +696,7 @@ function attachWeightingFormListener() {
 
           showToast(
             term
-              ? `Weighting saved for ${term.school_year} ${term.semester} Semester.`
+              ? `Weighting saved for ${term.school_year} ${term.semester} Term.`
               : "Weighting saved.",
             "success"
           );
@@ -785,7 +785,7 @@ function renderTermsTable() {
       return `
       <tr class="border-b border-gray-200 last:border-0">
         <td class="py-3 pr-4 font-medium text-gray-800">${term.school_year}</td>
-        <td class="py-3 pr-4 text-gray-500">${term.semester} Semester</td>
+        <td class="py-3 pr-4 text-gray-500">${term.semester} Term</td>
         <td class="py-3 pr-4">${termStatusBadge(term.status)}</td>
         <td class="py-3 text-sm">${actionHtml}</td>
       </tr>
