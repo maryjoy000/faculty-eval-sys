@@ -45,8 +45,8 @@ function renderAdminShell() {
     },
     { id: "reports", label: "Reports", href: "reports.html", icon: "file" },
     { id: "audit", label: "Audit Log", href: "audit-log.html", icon: "list" },
-    { id: "enrollment", label: "Enrollment", href: "enrollment.html", icon: "users" },
-    { id: "import", label: "Historical Import", href: "import.html", icon: "upload" },
+    { id: "enrollment", label: "Section Management", href: "enrollment.html", icon: "users" },
+    { id: "import", label: "Import Data", href: "import.html", icon: "upload" },
     { id: "system", label: "System Management", href: "system-management.html", icon: "settings" },
     { id: "criteria", label: "Evaluation Criteria", href: "evaluation-criteria.html", icon: "edit" },
   ];
