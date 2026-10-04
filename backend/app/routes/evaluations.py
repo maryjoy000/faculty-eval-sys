@@ -231,6 +231,7 @@ def get_dashboard_stats():
 
     active_faculty = Faculty.query.filter_by(status="Active").all()
     faculty_count = len(active_faculty)
+    active_ids = [f.id for f in active_faculty]
 
     # --------------------------------------------
     # Peer-to-Peer Evaluation
@@ -240,14 +241,17 @@ def get_dashboard_stats():
     peer_query = (
         Evaluation.query
         .join(EvaluationType)
-        .filter(EvaluationType.code == "peerToPeer")
+        .filter(
+            EvaluationType.code == "peerToPeer",
+            Evaluation.faculty_id.in_(active_ids),
+        )
     )
     if term_id is not None:
         peer_query = peer_query.filter(Evaluation.term_id == term_id)
     peer_evaluations = peer_query.count()
 
     peer_completion = (
-        (peer_evaluations / possible_peer_evaluations) * 100
+        min(100.0, (peer_evaluations / possible_peer_evaluations) * 100)
         if possible_peer_evaluations > 0
         else 0
     )
@@ -292,7 +296,7 @@ def get_dashboard_stats():
     student_evaluations = student_query.count()
 
     student_completion = (
-        (student_evaluations / possible_student_evaluations) * 100
+        min(100.0, (student_evaluations / possible_student_evaluations) * 100)
         if possible_student_evaluations > 0
         else 0
     )
@@ -301,16 +305,20 @@ def get_dashboard_stats():
     # Classroom Observation Completion
     # --------------------------------------------
     classroom_query = (
-        Evaluation.query
-        .join(EvaluationType)
-        .filter(EvaluationType.code == "classroomObservation")
+        db.session.query(Evaluation.faculty_id)
+        .join(EvaluationType, Evaluation.evaluation_type_id == EvaluationType.id)
+        .filter(
+            EvaluationType.code == "classroomObservation",
+            Evaluation.faculty_id.in_(active_ids),
+        )
     )
     if term_id is not None:
         classroom_query = classroom_query.filter(Evaluation.term_id == term_id)
-    classroom_observations = classroom_query.count()
+    # Faculty with at least one observation, so duplicates can't inflate it.
+    classroom_observations = classroom_query.distinct().count()
 
     classroom_observation_completion = (
-        (classroom_observations / faculty_count) * 100
+        min(100.0, (classroom_observations / faculty_count) * 100)
         if faculty_count > 0
         else 0
     )

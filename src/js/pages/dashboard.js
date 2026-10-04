@@ -511,11 +511,6 @@ function reloadDashboardData() {
 mountPageContent();
 renderStatCards();
 loadFacultyCount();
-loadEvaluationCompletion();
-loadSentimentData();
-loadTopRatedFaculty();
-loadRecentEvaluations();
-loadRatingDistribution();
 
 document
   .getElementById("rating-distribution-type")
@@ -525,4 +520,12 @@ document
   .getElementById("rating-distribution-export-btn")
   ?.addEventListener("click", exportRatingDistribution);
 
-initGlobalTermFilter(reloadDashboardData);
+(async function initDashboard() {
+  try {
+    await initGlobalTermFilter(reloadDashboardData);
+  } finally {
+    // Runs after the term list is ready, so withTerm() adds ?term_id=.
+    // Still runs if the term list fails, so the dashboard isn't left blank.
+    reloadDashboardData();
+  }
+})();
