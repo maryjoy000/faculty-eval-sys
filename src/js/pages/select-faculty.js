@@ -12,7 +12,6 @@ function getStudentFacultyList() {
   return roster.map((faculty) => ({
     facultyId: faculty.id,
     faculty: faculty.name,
-    subjectNames: faculty.subjects.map((s) => s.name).join(", "),
     sections: faculty.sections || []
   }));
 }
