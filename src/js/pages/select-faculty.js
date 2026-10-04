@@ -123,10 +123,6 @@ function renderStudentFacultyPage() {
         <tr class="border-b border-gray-200 last:border-0">
           <td class="py-3 pr-4">${item.faculty}</td>
 
-          <td class="py-3 pr-4">
-            ${item.subjectNames}
-          </td>
-
           <td class="py-3 pr-4 ${statusClass}">
             ${statusLabel}
           </td>
