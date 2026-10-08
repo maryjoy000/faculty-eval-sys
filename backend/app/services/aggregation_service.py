@@ -2,6 +2,8 @@
 Weighting math and classroom-observation COT/HCEC/Level derivation.
 Centralized here rather than duplicated across routes/reports later.
 """
+
+from sqlalchemy import func
 from ..models.evaluation import Evaluation
 from ..models.evaluation_type import EvaluationType
 from ..models.weighting import EvaluationWeighting
@@ -266,8 +268,98 @@ def get_classroom_observation_breakdown(faculty_id, term_id=None):
         "overall_rating_pct": evaluation.overall_rating_pct,
         "domains": domains,
     }
+def _get_paginated_comments(
+    faculty_id,
+    evaluation_type_id,
+    term_id=None,
+    page=1,
+    per_page=10,
+    descending=False,
+):
+    """
+    Retrieve only the requested page of written evaluation comments.
 
-def get_student_evaluation_breakdown(faculty_id, term_id=None):
+    Scores are calculated separately from all evaluations, so pagination
+    does not affect evaluation averages.
+    """
+
+    page = max(int(page or 1), 1)
+    per_page = min(max(int(per_page or 10), 1), 50)
+
+    query = (
+        Evaluation.query
+        .filter(
+            Evaluation.faculty_id == faculty_id,
+            Evaluation.evaluation_type_id == evaluation_type_id,
+            Evaluation.comments.isnot(None),
+            func.trim(Evaluation.comments) != "",
+        )
+    )
+
+    query = _apply_term_filter(query, term_id)
+
+    if descending:
+        query = query.order_by(Evaluation.submitted_at.desc())
+    else:
+        query = query.order_by(Evaluation.submitted_at.asc())
+
+    total = query.count()
+
+    evaluations = (
+        query
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    comments = []
+
+    for evaluation in evaluations:
+        sentiment = (
+            evaluation.sentiment_label.capitalize()
+            if evaluation.sentiment_label
+            else None
+        )
+
+        comments.append({
+            "text": evaluation.comments,
+            "sentiment": sentiment,
+            "sentiment_score": (
+                float(evaluation.sentiment_score)
+                if evaluation.sentiment_score is not None
+                else None
+            ),
+            "submitted_at": (
+                utc_iso(evaluation.submitted_at)
+                if evaluation.submitted_at
+                else None
+            ),
+        })
+
+    total_pages = (
+        (total + per_page - 1) // per_page
+        if total
+        else 0
+    )
+
+    return {
+        "items": comments,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+            "has_previous": page > 1,
+            "has_next": page < total_pages,
+        },
+    }
+
+def get_student_evaluation_breakdown(
+    faculty_id,
+    term_id=None,
+    comment_page=1,
+    comment_per_page=10,
+):
     et = EvaluationType.query.filter_by(code="student").first()
 
     if not et:
@@ -376,8 +468,8 @@ def get_student_evaluation_breakdown(faculty_id, term_id=None):
         overall_average / 5
     ) * 100
 
-    comments = []
-
+    # Comment statistics are calculated across all comments,
+    # while the actual comment list is paginated.
     sentiment_counts = {
         "Positive": 0,
         "Neutral": 0,
@@ -386,22 +478,23 @@ def get_student_evaluation_breakdown(faculty_id, term_id=None):
 
     for evaluation in evaluations:
         if evaluation.comments and evaluation.comments.strip():
-            sentiment = (evaluation.sentiment_label or "neutral").capitalize()
-
-            comments.append({
-                "text": evaluation.comments,
-                "sentiment": sentiment,
-                "submitted_at": (
-                    utc_iso(evaluation.submitted_at)
-                    if evaluation.submitted_at
-                    else None
-                ),
-            })
+            sentiment = (
+                evaluation.sentiment_label or "neutral"
+            ).capitalize()
 
             if sentiment in sentiment_counts:
                 sentiment_counts[sentiment] += 1
 
-    total_comments = len(comments)
+    total_comments = sum(sentiment_counts.values())
+
+    paginated_comments = _get_paginated_comments(
+        faculty_id=faculty_id,
+        evaluation_type_id=et.id,
+        term_id=term_id,
+        page=comment_page,
+        per_page=comment_per_page,
+        descending=False,
+    )
 
     sentiment_percentages = {
         label: round(
@@ -428,7 +521,9 @@ def get_student_evaluation_breakdown(faculty_id, term_id=None):
 
         "domains": domains,
 
-        "comments": comments,
+        "comments": paginated_comments["items"],
+
+        "comments_pagination": paginated_comments["pagination"],
 
         "sentiment": {
             "counts": sentiment_counts,
@@ -437,7 +532,12 @@ def get_student_evaluation_breakdown(faculty_id, term_id=None):
         },
     }
 
-def get_peer_evaluation_breakdown(faculty_id, term_id=None):
+def get_peer_evaluation_breakdown(
+    faculty_id,
+    term_id=None,
+    comment_page=1,
+    comment_per_page=10,
+):
     et = EvaluationType.query.filter_by(code="peerToPeer").first()
 
     if not et:
@@ -538,28 +638,14 @@ def get_peer_evaluation_breakdown(faculty_id, term_id=None):
         else None
     )
 
-    comments = []
-
-    for evaluation in evaluations:
-        if evaluation.comments and evaluation.comments.strip():
-            comments.append({
-                "text": evaluation.comments,
-                "sentiment": (
-                    evaluation.sentiment_label.capitalize()
-                    if evaluation.sentiment_label
-                    else None
-                ),
-                "sentiment_score": (
-                    float(evaluation.sentiment_score)
-                    if evaluation.sentiment_score is not None
-                    else None
-                ),
-                "submitted_at": (
-                    utc_iso(evaluation.submitted_at)
-                    if evaluation.submitted_at
-                    else None
-                )
-            })
+    paginated_comments = _get_paginated_comments(
+        faculty_id=faculty_id,
+        evaluation_type_id=et.id,
+        term_id=term_id,
+        page=comment_page,
+        per_page=comment_per_page,
+        descending=False,
+    )
 
     return {
         "faculty_id": faculty_id,
@@ -581,10 +667,16 @@ def get_peer_evaluation_breakdown(faculty_id, term_id=None):
             else None
         ),
         "domains": domains,
-        "comments": comments
+        "comments": paginated_comments["items"],
+        "comments_pagination": paginated_comments["pagination"],
     }
 
-def get_hr_evaluation_breakdown(faculty_id, term_id=None):
+def get_hr_evaluation_breakdown(
+    faculty_id,
+    term_id=None,
+    comment_page=1,
+    comment_per_page=10,
+):
     et = EvaluationType.query.filter_by(code="hrEvaluation").first()
 
     if not et:
@@ -665,7 +757,7 @@ def get_hr_evaluation_breakdown(faculty_id, term_id=None):
             "indicators": indicators
         })
 
-        comments = []
+    comments = []
 
     for evaluation in evaluations:
         if evaluation.comments and evaluation.comments.strip():

@@ -184,7 +184,213 @@ async function renderContent() {
         `;
       }
 
-      async function renderStudentTab() {
+      function escapeHtml(value) {
+          const div = document.createElement("div");
+          div.textContent = value ?? "";
+          return div.innerHTML;
+      }
+
+      function formatCommentDate(value) {
+          if (!value) return "";
+
+          const date = new Date(value);
+
+          if (Number.isNaN(date.getTime())) {
+              return value;
+          }
+
+          return date.toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+          });
+      }
+
+      function sentimentBadge(sentiment) {
+          if (!sentiment) return "";
+
+          const normalized = String(sentiment).toLowerCase();
+
+          let classes =
+              "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium";
+
+          if (normalized === "positive") {
+              classes += " bg-green-100 text-green-700";
+          } else if (normalized === "negative") {
+              classes += " bg-red-100 text-red-700";
+          } else {
+              classes += " bg-gray-100 text-gray-700";
+          }
+
+          return `
+              <span class="${classes}">
+                  ${escapeHtml(sentiment)}
+              </span>
+          `;
+      }
+
+      function renderCommentsSection({
+          title,
+          comments,
+          pagination,
+          emptyMessage = "No comments were submitted.",
+      }) {
+          const total = pagination?.total ?? 0;
+          const page = pagination?.page ?? 1;
+          const perPage = pagination?.per_page ?? 10;
+          const totalPages = pagination?.total_pages ?? 0;
+
+          if (!total) {
+              return `
+                  <div class="mt-8 border-t border-gray-200 pt-6">
+                      <h3 class="font-semibold text-gray-800 mb-3">
+                          ${escapeHtml(title)}
+                      </h3>
+
+                      <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 text-center">
+                          <p class="text-sm text-gray-500">
+                              ${escapeHtml(emptyMessage)}
+                          </p>
+                      </div>
+                  </div>
+              `;
+          }
+
+          const start = (page - 1) * perPage + 1;
+          const end = Math.min(page * perPage, total);
+
+          const commentCards = (comments || [])
+              .map((comment) => `
+                  <div class="border border-gray-200 rounded-lg p-4 bg-white">
+                      <p class="text-sm text-gray-700 whitespace-pre-wrap">
+                          ${escapeHtml(comment.text)}
+                      </p>
+
+                      <div class="flex flex-wrap items-center gap-2 mt-3">
+                          ${sentimentBadge(comment.sentiment)}
+
+                          ${
+                              comment.submitted_at
+                                  ? `
+                                      <span class="text-xs text-gray-400">
+                                          ${formatCommentDate(comment.submitted_at)}
+                                      </span>
+                                  `
+                                  : ""
+                          }
+                      </div>
+                  </div>
+              `)
+              .join("");
+
+          let pageButtons = "";
+
+          if (totalPages > 1) {
+              const buttons = [];
+
+              if (page > 1) {
+                  buttons.push(`
+                      <button
+                          type="button"
+                          class="comment-page-btn btn-secondary text-xs"
+                          data-page="${page - 1}">
+                          Previous
+                      </button>
+                  `);
+              }
+
+              const maxVisiblePages = 5;
+
+              let startPage = Math.max(
+                  1,
+                  page - Math.floor(maxVisiblePages / 2)
+              );
+
+              let endPage = Math.min(
+                  totalPages,
+                  startPage + maxVisiblePages - 1
+              );
+
+              if (endPage - startPage + 1 < maxVisiblePages) {
+                  startPage = Math.max(
+                      1,
+                      endPage - maxVisiblePages + 1
+                  );
+              }
+
+              for (
+                  let pageNumber = startPage;
+                  pageNumber <= endPage;
+                  pageNumber++
+              ) {
+                  buttons.push(`
+                      <button
+                          type="button"
+                          class="comment-page-btn ${
+                              pageNumber === page
+                                  ? "btn-primary"
+                                  : "btn-secondary"
+                          } text-xs min-w-[34px]"
+                          data-page="${pageNumber}">
+                          ${pageNumber}
+                      </button>
+                  `);
+              }
+
+              if (page < totalPages) {
+                  buttons.push(`
+                      <button
+                          type="button"
+                          class="comment-page-btn btn-secondary text-xs"
+                          data-page="${page + 1}">
+                          Next
+                      </button>
+                  `);
+              }
+
+              pageButtons = `
+                  <div class="flex flex-wrap items-center justify-between gap-3 mt-4">
+                      <p class="text-xs text-gray-500">
+                          Showing ${start}–${end} of ${total} comments
+                      </p>
+
+                      <div class="flex flex-wrap gap-1">
+                          ${buttons.join("")}
+                      </div>
+                  </div>
+              `;
+          } else {
+              pageButtons = `
+                  <p class="text-xs text-gray-500 mt-4">
+                      Showing ${total} comment${total === 1 ? "" : "s"}
+                  </p>
+              `;
+          }
+
+          return `
+              <div class="mt-8 border-t border-gray-200 pt-6">
+
+                  <div class="flex items-center justify-between mb-3">
+                      <h3 class="font-semibold text-gray-800">
+                          ${escapeHtml(title)}
+                      </h3>
+
+                      <span class="text-xs text-gray-500">
+                          ${total} total
+                      </span>
+                  </div>
+
+                  <div class="space-y-3">
+                      ${commentCards}
+                  </div>
+
+                  ${pageButtons}
+
+              </div>
+          `;
+      }
+
+      async function renderStudentTab(commentPage = 1) {
         tabContent.innerHTML = `
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
             <p class="text-gray-500">Loading student evaluation results...</p>
@@ -193,7 +399,7 @@ async function renderContent() {
 
         try {
           const studentData = await apiGet(
-            `/evaluations/${facultyId}/student-breakdown`
+            `/evaluations/${facultyId}/student-breakdown?comment_page=${commentPage}&comment_per_page=10`,
           );
 
           const evaluationCount = Number(studentData.submission_count ?? 0);
@@ -269,8 +475,20 @@ async function renderContent() {
                   </div>
                 `).join("")}
               </div>
+              ${renderCommentsSection({
+                title: "Student Comments",
+                comments: studentData.comments,
+                pagination: studentData.comments_pagination,
+              })}
             </div>
           `;
+          tabContent
+            .querySelectorAll(".comment-page-btn")
+            .forEach((button) => {
+              button.addEventListener("click", () => {
+                renderStudentTab(Number(button.dataset.page));
+              });
+            });
         } catch (error) {
           console.error("Failed to load student evaluation:", error);
 
@@ -285,7 +503,7 @@ async function renderContent() {
       }
 
 
-      async function renderPeerTab() {
+      async function renderPeerTab(commentPage = 1) {
         tabContent.innerHTML = `
           <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
             <p class="text-gray-500">
@@ -296,7 +514,7 @@ async function renderContent() {
 
         try {
           const peerData = await apiGet(
-            `/evaluations/${facultyId}/peer-breakdown`
+            `/evaluations/${facultyId}/peer-breakdown?comment_page=${commentPage}&comment_per_page=10`
           );
 
           const evaluationCount = Number(peerData.submission_count ?? 0);
@@ -387,9 +605,20 @@ async function renderContent() {
                 `).join("")}
 
               </div>
-
+              ${renderCommentsSection({
+                  title: "Peer-to-Peer Comments",
+                  comments: peerData.comments,
+                  pagination: peerData.comments_pagination,
+              })}
             </div>
           `;
+          tabContent
+            .querySelectorAll(".comment-page-btn")
+            .forEach((button) => {
+                button.addEventListener("click", () => {
+                    renderPeerTab(Number(button.dataset.page));
+                });
+            });
         } catch (error) {
           console.error("Failed to load peer evaluation:", error);
 
@@ -464,6 +693,47 @@ async function renderContent() {
                     </div>
                   </div>
                 `).join("")}
+              </div>
+              <div class="mt-8 border-t border-gray-200 pt-6">
+
+                  <h3 class="font-semibold text-gray-800 mb-3">
+                      HR Comment
+                  </h3>
+
+                  ${
+                      hrData.comments && hrData.comments.length
+                          ? hrData.comments.map((comment) => `
+                              <div class="border border-gray-200 rounded-lg p-4 bg-white">
+
+                                  <p class="text-sm text-gray-700 whitespace-pre-wrap">
+                                      ${escapeHtml(comment.text)}
+                                  </p>
+
+                                  <div class="flex flex-wrap items-center gap-2 mt-3">
+                                      ${sentimentBadge(comment.sentiment)}
+
+                                      ${
+                                          comment.submitted_at
+                                              ? `
+                                                  <span class="text-xs text-gray-400">
+                                                      ${formatCommentDate(comment.submitted_at)}
+                                                  </span>
+                                              `
+                                              : ""
+                                      }
+                                  </div>
+
+                              </div>
+                          `).join("")
+                          : `
+                              <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 text-center">
+                                  <p class="text-sm text-gray-500">
+                                      No HR comment is available.
+                                  </p>
+                              </div>
+                          `
+                  }
+
               </div>
             </div>
           `;

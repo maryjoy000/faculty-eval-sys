@@ -923,7 +923,18 @@ def get_student_breakdown(faculty_id):
     if term_error:
         return term_error[0], term_error[1]
 
-    breakdown = get_student_evaluation_breakdown(faculty_id, term_id)
+    comment_page = request.args.get("comment_page", default=1, type=int)
+    comment_per_page = request.args.get("comment_per_page", default=10, type=int)
+
+    comment_page = max(comment_page, 1)
+    comment_per_page = min(max(comment_per_page, 1), 50)
+
+    breakdown = get_student_evaluation_breakdown(
+        faculty_id,
+        term_id=term_id,
+        comment_page=comment_page,
+        comment_per_page=comment_per_page,
+    )
 
     if not breakdown:
         return jsonify({
@@ -956,7 +967,18 @@ def get_peer_breakdown(faculty_id):
     if term_error:
         return term_error[0], term_error[1]
 
-    breakdown = get_peer_evaluation_breakdown(faculty_id, term_id)
+    comment_page = request.args.get("comment_page", default=1, type=int)
+    comment_per_page = request.args.get("comment_per_page", default=10, type=int)
+
+    comment_page = max(comment_page, 1)
+    comment_per_page = min(max(comment_per_page, 1), 50)
+
+    breakdown = get_peer_evaluation_breakdown(
+        faculty_id,
+        term_id=term_id,
+        comment_page=comment_page,
+        comment_per_page=comment_per_page,
+    )
 
     if not breakdown:
         return jsonify({
