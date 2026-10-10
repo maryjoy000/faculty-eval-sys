@@ -511,38 +511,6 @@ async function downloadExport() {
   }
 }
 
-// ============================================
-// FACULTY REFERENCE (click to copy)
-// ============================================
-
-async function loadFacultyReference() {
-  const container = document.getElementById("hist-faculty-list");
-  try {
-    const faculty = await apiGet("/faculty");
-    if (!Array.isArray(faculty) || !faculty.length) {
-      container.innerHTML = `<span class="text-gray-400">No faculty found - add them in Faculty Management first.</span>`;
-      return;
-    }
-    container.innerHTML = faculty.map((f) =>
-      `<button type="button" data-faculty-name="${escapeHtml(f.name)}" title="Click to copy"` +
-      ` class="bg-gray-100 border border-gray-200 rounded-full px-3 py-1 hover:bg-brand-light hover:border-brand">` +
-      `${escapeHtml(f.name)}</button>`
-    ).join("");
-    container.querySelectorAll("[data-faculty-name]").forEach((chip) => {
-      chip.addEventListener("click", async () => {
-        const name = chip.dataset.facultyName;
-        try {
-          await navigator.clipboard.writeText(name);
-          showToast(`Copied: ${name}`, "success");
-        } catch (error) {
-          showToast(name, "success");
-        }
-      });
-    });
-  } catch (error) {
-    container.innerHTML = `<span class="text-gray-400">Could not load faculty list.</span>`;
-  }
-}
 
 // ============================================
 // INITIALIZE
@@ -577,11 +545,12 @@ function attachImportListeners() {
   document.getElementById("hist-target-term").addEventListener("change", markPayloadDirty);
 }
 
+
 async function initializeHistoricalImport() {
   mountPageContent();
   attachImportListeners();
   refreshSteps();
-  await Promise.all([loadFacultyReference(), loadTargetTerms()]);
+  await loadTargetTerms();
 }
 
 initializeHistoricalImport();
