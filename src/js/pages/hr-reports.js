@@ -107,7 +107,7 @@ function renderHrReportsPage() {
   if (pageRows.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="py-6 text-center text-gray-400">
+        <td colspan="7" class="py-6 text-center text-gray-400">
           No reports found.
         </td>
       </tr>
@@ -132,6 +132,16 @@ function renderHrReportsPage() {
             ? `<span class="text-green-600 font-medium">${data.average_rating.toFixed(2)}</span>`
             : `<span class="text-gray-400">—</span>`;
 
+        const sentiment = report?.dominant_sentiment || null;
+        const sentimentClass =
+          sentiment === "Positive"
+            ? "text-green-600"
+            : sentiment === "Negative"
+              ? "text-red-600"
+              : sentiment === "Neutral"
+                ? "text-amber-600"
+                : "text-gray-400";
+
         return `
           <tr class="border-b border-gray-200 last:border-0">
             <td class="py-3 pr-4">${faculty.name}</td>
@@ -139,6 +149,9 @@ function renderHrReportsPage() {
             <td class="py-3 pr-4">${cell(studentData)}</td>
             <td class="py-3 pr-4">${cell(peerData)}</td>
             <td class="py-3 pr-4">${cell(hrData)}</td>
+            <td class="py-3 pr-4">
+              <span class="${sentimentClass} font-medium text-sm">${sentiment || "—"}</span>
+            </td>
             <td class="py-3">
               <button
                 type="button"
@@ -197,7 +210,7 @@ async function renderReportsTable() {
 
     tableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="py-6 text-center text-red-500">
+        <td colspan="7" class="py-6 text-center text-red-500">
           Failed to load faculty.
         </td>
       </tr>
@@ -237,6 +250,60 @@ async function renderReportsTable() {
 let currentReportFaculty = null;
 let currentReportTab = "combined";
 
+// The student and peer endpoints paginate their comment list (default 10,
+// max 50 per page). Reports must show and print EVERY comment, so walk all pages.
+const HR_COMMENT_PAGE_SIZE = 50;
+const HR_MAX_COMMENT_PAGES = 200;
+
+async function fetchBreakdownWithAllComments(endpoint) {
+  const urlFor = (page) => {
+    const base = withTerm(endpoint);
+    const sep = base.includes("?") ? "&" : "?";
+    return `${base}${sep}comment_page=${page}&comment_per_page=${HR_COMMENT_PAGE_SIZE}`;
+  };
+
+  // A 404 here means "not completed yet" and is handled by the caller.
+  const first = await apiGet(urlFor(1));
+  if (!first) return null;
+
+  const all = [...(first.comments || [])];
+  const pagination = first.comments_pagination || {};
+  const totalPages =
+    Number(pagination.total_pages ?? pagination.pages ?? pagination.totalPages) || null;
+
+  let page = 1;
+  let lastBatch = first.comments || [];
+
+  while (page < HR_MAX_COMMENT_PAGES) {
+    const done = totalPages
+      ? page >= totalPages
+      : lastBatch.length < HR_COMMENT_PAGE_SIZE;
+    if (done) break;
+
+    page += 1;
+
+    let batch = [];
+    try {
+      const next = await apiGet(urlFor(page));
+      batch = (next && next.comments) || [];
+    } catch (error) {
+      console.warn(`Could not load comment page ${page}:`, error);
+      break;
+    }
+
+    if (!batch.length) break;
+
+    // Guard: if the server ignored the page number, stop instead of looping.
+    if (JSON.stringify(batch[0]) === JSON.stringify(lastBatch[0])) break;
+
+    all.push(...batch);
+    lastBatch = batch;
+  }
+
+  first.comments = all;
+  return first;
+}
+
 async function loadFacultyReportData(facultyId) {
   const report = {
     classroom: null,
@@ -246,16 +313,16 @@ async function loadFacultyReportData(facultyId) {
   };
 
   const requests = [
-    ["classroom", withTerm(`/evaluations/${facultyId}/classroom-breakdown`)],
-    ["student", withTerm(`/evaluations/${facultyId}/student-breakdown`)],
-    ["peer", withTerm(`/evaluations/${facultyId}/peer-breakdown`)],
-    ["hr", withTerm(`/evaluations/${facultyId}/hr-breakdown`)]
+    ["classroom", () => apiGet(withTerm(`/evaluations/${facultyId}/classroom-breakdown`))],
+    ["student", () => fetchBreakdownWithAllComments(`/evaluations/${facultyId}/student-breakdown`)],
+    ["peer", () => fetchBreakdownWithAllComments(`/evaluations/${facultyId}/peer-breakdown`)],
+    ["hr", () => apiGet(withTerm(`/evaluations/${facultyId}/hr-breakdown`))]
   ];
 
   await Promise.all(
-    requests.map(async ([type, url]) => {
+    requests.map(async ([type, load]) => {
       try {
-        report[type] = await apiGet(url);
+        report[type] = await load();
       } catch (error) {
         // 404 simply means that evaluation type has not been completed.
         report[type] = null;
@@ -363,6 +430,56 @@ function attachDetailViewListeners() {
     });
   });
 }
+
+// ============================================
+// PRINT: un-clip the report
+// ============================================
+// The app shell scrolls internally (fixed height + overflow), which clips
+// everything past the first screen when printing. Just while printing, let
+// every ancestor of the report grow to its full height.
+let printStyleBackup = [];
+
+function releaseReportClippingForPrint() {
+  printStyleBackup = [];
+
+  let node = document.getElementById("report-tab-content");
+
+  while (node) {
+    printStyleBackup.push({
+      node,
+      overflow: node.style.overflow,
+      overflowX: node.style.overflowX,
+      overflowY: node.style.overflowY,
+      height: node.style.height,
+      maxHeight: node.style.maxHeight
+    });
+
+    node.style.setProperty("overflow", "visible", "important");
+    node.style.setProperty("height", "auto", "important");
+    node.style.setProperty("max-height", "none", "important");
+
+    node = node.parentElement;
+  }
+}
+
+function restoreReportClippingAfterPrint() {
+  printStyleBackup.forEach((saved) => {
+    saved.node.style.removeProperty("overflow");
+    saved.node.style.removeProperty("height");
+    saved.node.style.removeProperty("max-height");
+
+    saved.node.style.overflow = saved.overflow;
+    saved.node.style.overflowX = saved.overflowX;
+    saved.node.style.overflowY = saved.overflowY;
+    saved.node.style.height = saved.height;
+    saved.node.style.maxHeight = saved.maxHeight;
+  });
+
+  printStyleBackup = [];
+}
+
+window.addEventListener("beforeprint", releaseReportClippingForPrint);
+window.addEventListener("afterprint", restoreReportClippingAfterPrint);
 
 // --- Deep-link support: if a facultyId is in the URL (e.g. from HR's
 // Faculty Management "View Reports" action), open straight to that

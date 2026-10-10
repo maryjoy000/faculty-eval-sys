@@ -70,6 +70,113 @@ function resolveSentimentCounts(backendSentiment, comments) {
   return countSentiments(comments);
 }
 
+// ============================================
+// Paginated comments panel (on-screen only)
+// ============================================
+// The page shows COMMENTS_PER_PAGE comments at a time with a sentiment badge;
+// printing still outputs every comment (separate print-only blocks).
+const REPORT_COMMENTS_PER_PAGE = 10;
+const reportCommentStore = {};
+
+function escapeReportHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function buildSentimentBadgeHtml(label) {
+  const styles = {
+    Positive: "background:#DCFCE7;color:#166534;",
+    Neutral: "background:#F3F4F6;color:#4B5563;",
+    Negative: "background:#FEE2E2;color:#991B1B;"
+  };
+  const shown = styles[label] ? label : "Neutral";
+
+  return `<span style="${styles[shown]}display:inline-block;font-size:11px;font-weight:600;line-height:1;padding:4px 8px;border-radius:9999px;white-space:nowrap;">${shown}</span>`;
+}
+
+function buildCommentPagerHtml(type, current, totalPages) {
+  if (totalPages <= 1) return "";
+
+  const pages = [];
+  for (let n = 1; n <= totalPages; n++) {
+    if (n === 1 || n === totalPages || Math.abs(n - current) <= 1) pages.push(n);
+    else if (pages[pages.length - 1] !== "…") pages.push("…");
+  }
+
+  const btnBase = "min-width:32px;height:32px;padding:0 10px;border:1px solid #D1D5DB;border-radius:8px;font-size:13px;background:#fff;color:#374151;cursor:pointer;";
+  const btn = (label, page, { active = false, disabled = false } = {}) => `
+    <button type="button" data-comments-nav="${type}" data-page="${page}" ${disabled ? "disabled" : ""}
+      style="${btnBase}${active ? "background:#1F2937;color:#fff;border-color:#1F2937;" : ""}${disabled ? "opacity:.4;cursor:not-allowed;" : ""}">${label}</button>`;
+
+  return `
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;margin-top:12px;">
+      ${btn("Previous", current - 1, { disabled: current <= 1 })}
+      ${pages.map((n) => n === "…"
+        ? `<span style="padding:0 4px;color:#9CA3AF;">…</span>`
+        : btn(n, n, { active: n === current })).join("")}
+      ${btn("Next", current + 1, { disabled: current >= totalPages })}
+    </div>`;
+}
+
+function buildCommentsPanelInnerHtml(type, comments, page) {
+  const total = comments.length;
+  const totalPages = Math.max(1, Math.ceil(total / REPORT_COMMENTS_PER_PAGE));
+  const current = Math.min(Math.max(Number(page) || 1, 1), totalPages);
+  const start = (current - 1) * REPORT_COMMENTS_PER_PAGE;
+  const slice = comments.slice(start, start + REPORT_COMMENTS_PER_PAGE);
+
+  if (total === 0) {
+    return `<p style="font-size:14px;color:#9CA3AF;font-style:italic;">No comments were submitted.</p>`;
+  }
+
+  const rows = slice.map((comment, i) => `
+    <div class="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-700"
+         style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+      <span style="flex:1;"><span style="color:#9CA3AF;">${start + i + 1}.</span> ${escapeReportHtml(comment.text)}</span>
+      ${buildSentimentBadgeHtml(comment.sentiment)}
+    </div>`).join("");
+
+  return `
+    <p style="font-size:12px;color:#6B7280;margin-bottom:6px;">
+      Showing ${start + 1}–${start + slice.length} of ${total} comment${total === 1 ? "" : "s"}
+    </p>
+    <div class="space-y-1">${rows}</div>
+    ${buildCommentPagerHtml(type, current, totalPages)}`;
+}
+
+function buildCommentsPanelHtml(type, comments, title) {
+  const list = Array.isArray(comments) ? comments : [];
+  reportCommentStore[type] = { comments: list, page: 1 };
+
+  return `
+    <div class="mt-3 no-print">
+      ${title ? `<div class="font-semibold text-sm text-gray-800 mb-1">${title} (${list.length})</div>` : ""}
+      <div id="report-comments-${type}">
+        ${buildCommentsPanelInnerHtml(type, list, 1)}
+      </div>
+    </div>`;
+}
+
+if (typeof document !== "undefined" && !window.__reportCommentNavBound) {
+  window.__reportCommentNavBound = true;
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest && event.target.closest("[data-comments-nav]");
+    if (!button || button.disabled) return;
+
+    const type = button.dataset.commentsNav;
+    const store = reportCommentStore[type];
+    const panel = document.getElementById(`report-comments-${type}`);
+    if (!store || !panel) return;
+
+    store.page = Number(button.dataset.page) || 1;
+    panel.innerHTML = buildCommentsPanelInnerHtml(type, store.comments, store.page);
+    panel.scrollIntoView({ block: "nearest" });
+  });
+}
+
 function getClassroomObservationData(facultyId) {
   const backend = hrReportDataCache?.[facultyId]?.classroom;
 
@@ -234,7 +341,7 @@ function getStudentEvaluationData(faculty) {
 
     sentimentCounts: resolveSentimentCounts(backend.sentiment, normalizeReportComments(backend.comments)),
 
-    submissionCount: backend.evaluation_count
+    submissionCount: backend.submission_count ?? backend.evaluation_count ?? 0
   };
 }
 
@@ -441,23 +548,7 @@ function buildStudentCategoryTableHtml(studentData) {
 
   const overallRemarks = studentData.average > 0 ? studentData.equivalent : "—";
 
-  const commentsHtml = (studentData.comments || []).length > 0
-    ? `
-      <div class="mt-3 no-print">
-        <div class="font-semibold text-sm text-gray-800 mb-1">
-          Comments:
-        </div>
-
-        <div class="space-y-1">
-          ${studentData.comments.map((comment) => `
-            <div class="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-700">
-              ${typeof comment === "string" ? comment : comment.text}
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `
-    : "";
+  const commentsHtml = buildCommentsPanelHtml("student", studentData.comments, "Comments");
     
   return `
     <table class="w-full border-collapse mb-2 text-left">
@@ -824,6 +915,9 @@ function buildPeerCategoryTableHtml(peerData) {
         Comment on the employee's overall performance.
       </div>
 
+      ${buildCommentsPanelHtml("peer", comments)}
+
+      <div class="hidden print:block">
       <table class="w-full border-collapse text-sm">
         <tbody>
 
@@ -873,6 +967,7 @@ function buildPeerCategoryTableHtml(peerData) {
 
         </tbody>
       </table>
+      </div>
 
     </div>
 
@@ -936,6 +1031,27 @@ function buildPeerCategoryTableHtml(peerData) {
       </div>
     </div>
   `;
+}
+
+// Print-only list of every HR comment with its sentiment label.
+function buildHrPrintCommentsHtml(comments) {
+  const list = Array.isArray(comments) ? comments : [];
+  const color = (label) =>
+    label === "Positive" ? "text-green-700" : label === "Negative" ? "text-red-700" : "text-gray-500";
+
+  const body = list.length
+    ? list.map((c, i) => `
+        <div class="flex items-start justify-between gap-3 py-1.5 border-b border-gray-200">
+          <p class="text-xs print:text-[10px] text-gray-700 flex-1">${i + 1}. ${escapeReportHtml(c.text)}</p>
+          <span class="text-[9px] font-semibold ${color(c.sentiment)} whitespace-nowrap">${c.sentiment || "Neutral"}</span>
+        </div>`).join("")
+    : `<p class="text-xs print:text-[10px] text-gray-400 italic">No comments were submitted.</p>`;
+
+  return `
+    <div class="hidden print:block mt-3">
+      <p class="text-sm print:text-[12px] font-bold text-gray-800 mb-1">HR Comments</p>
+      ${body}
+    </div>`;
 }
 
 function buildEmptyState(label) {
@@ -1492,6 +1608,9 @@ function buildReportTabHtml(tabType, faculty) {
           ${typeof data.average === "number" ? data.average.toFixed(2) : "--"}
         </span>
       </div>
+
+      ${buildCommentsPanelHtml("hr", data.comments, "HR Comments")}
+      ${buildHrPrintCommentsHtml(data.comments)}
     `;
   }
 
