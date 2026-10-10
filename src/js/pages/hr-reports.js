@@ -14,6 +14,74 @@ let hrFacultyRoster = [];
 let hrReportDataCache = {};
 let hrReportRowsCache = [];
 
+// ============================================
+// HR REPORT FILTERS
+// ============================================
+
+function hrReportHasResults(report) {
+  if (!report || !report.per_type) return false;
+
+  return [
+    report.per_type.classroomObservation,
+    report.per_type.student,
+    report.per_type.peerToPeer,
+    report.per_type.hrEvaluation,
+  ].some(
+    (data) =>
+      data &&
+      typeof data.average_rating === "number"
+  );
+}
+
+function getFilteredHrReportRows() {
+  const searchTerm = (
+    document.getElementById("hr-reports-search-input")?.value || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const statusFilter =
+    document.getElementById("hr-reports-status-filter")?.value || "all";
+
+  return hrReportRowsCache.filter(({ faculty, report }) => {
+    // Search by faculty name
+    if (
+      searchTerm &&
+      !String(faculty.name || "").toLowerCase().includes(searchTerm)
+    ) {
+      return false;
+    }
+
+    // Filter by evaluation results
+    if (statusFilter === "all") return true;
+
+    const hasResults = hrReportHasResults(report);
+
+    return statusFilter === "with-results"
+      ? hasResults
+      : !hasResults;
+  });
+}
+
+function attachHrReportsFilterListeners() {
+  const searchInput = document.getElementById("hr-reports-search-input");
+  const statusFilter = document.getElementById("hr-reports-status-filter");
+
+  searchInput?.addEventListener("input", () => {
+    const pager = getHrReportsPager();
+    if (pager) pager.reset();
+
+    renderHrReportsPage();
+  });
+
+  statusFilter?.addEventListener("change", () => {
+    const pager = getHrReportsPager();
+    if (pager) pager.reset();
+
+    renderHrReportsPage();
+  });
+}
+
 var hrReportsPager = null;
 function getHrReportsPager() {
   if (!hrReportsPager) {
@@ -31,7 +99,10 @@ function renderHrReportsPage() {
   if (!tableBody) return;
 
   const pager = getHrReportsPager();
-  const pageRows = pager ? pager.paginate(hrReportRowsCache) : hrReportRowsCache;
+  const filteredRows = getFilteredHrReportRows();
+  const pageRows = pager
+    ? pager.paginate(filteredRows)
+    : filteredRows;
 
   if (pageRows.length === 0) {
     tableBody.innerHTML = `
@@ -42,7 +113,45 @@ function renderHrReportsPage() {
       </tr>
     `;
   } else {
-    tableBody.innerHTML = pageRows.map(({ rowHtml }) => rowHtml).join("");
+    tableBody.innerHTML = pageRows
+      .map(({ faculty, report }) => {
+        const classroomData =
+          report?.per_type?.classroomObservation;
+
+        const studentData =
+          report?.per_type?.student;
+
+        const peerData =
+          report?.per_type?.peerToPeer;
+
+        const hrData =
+          report?.per_type?.hrEvaluation;
+
+        const cell = (data) =>
+          data && typeof data.average_rating === "number"
+            ? `<span class="text-green-600 font-medium">${data.average_rating.toFixed(2)}</span>`
+            : `<span class="text-gray-400">—</span>`;
+
+        return `
+          <tr class="border-b border-gray-200 last:border-0">
+            <td class="py-3 pr-4">${faculty.name}</td>
+            <td class="py-3 pr-4">${cell(classroomData)}</td>
+            <td class="py-3 pr-4">${cell(studentData)}</td>
+            <td class="py-3 pr-4">${cell(peerData)}</td>
+            <td class="py-3 pr-4">${cell(hrData)}</td>
+            <td class="py-3">
+              <button
+                type="button"
+                class="view-report-btn text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+                data-faculty-id="${faculty.id}"
+              >
+                View Report
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
   }
 
   document.querySelectorAll(".view-report-btn").forEach((btn) => {
@@ -58,14 +167,25 @@ function renderHrReportsPage() {
   });
 
   if (pager) {
-    pager.render("hr-reports-pagination", hrReportRowsCache.length, renderHrReportsPage);
+    pager.render(
+      "hr-reports-pagination",
+      filteredRows.length,
+      renderHrReportsPage
+    );
   } else {
-    const fallbackContainer = document.getElementById("hr-reports-pagination");
-    if (fallbackContainer) fallbackContainer.innerHTML = "";
+    const fallbackContainer =
+      document.getElementById("hr-reports-pagination");
+
+    if (fallbackContainer) {
+      fallbackContainer.innerHTML = "";
+    }
   }
 }
 
-// --- Render the summary table ---
+// ============================================
+// LOAD HR REPORT LIST
+// ============================================
+
 async function renderReportsTable() {
   const tableBody = document.getElementById("hr-reports-table-body");
   if (!tableBody) return;
@@ -74,6 +194,7 @@ async function renderReportsTable() {
     hrFacultyRoster = await apiGet("/faculty");
   } catch (err) {
     console.error("Failed to load faculty roster:", err);
+
     tableBody.innerHTML = `
       <tr>
         <td colspan="6" class="py-6 text-center text-red-500">
@@ -81,65 +202,37 @@ async function renderReportsTable() {
         </td>
       </tr>
     `;
+
     return;
   }
 
-  const rows = await Promise.all(hrFacultyRoster.map(async (faculty) => {
-    let summary = null;
-    try {
-      summary = await apiGet(withTerm(`/evaluations/${faculty.id}`));
-    } catch (error) {
-      console.error(`Failed to load report for faculty ${faculty.id}:`, error);
-      summary = null;
-    }
-    const classroomData = summary?.per_type?.classroomObservation
-      ? { average: summary.per_type.classroomObservation.average_rating }
-      : null;
+  const reportResults = await Promise.all(
+    hrFacultyRoster.map(async (faculty) => {
+      try {
+        return await apiGet(
+          withTerm(`/evaluations/${faculty.id}`)
+        );
+      } catch (error) {
+        console.error(
+          `Failed to load report for faculty ${faculty.id}:`,
+          error
+        );
 
-    const studentData = summary?.per_type?.student
-      ? { average: summary.per_type.student.average_rating }
-      : null;
+        return null;
+      }
+    })
+  );
 
-    const peerData = summary?.per_type?.peerToPeer
-      ? { average: summary.per_type.peerToPeer.average_rating }
-      : null;
+  hrReportRowsCache = hrFacultyRoster.map((faculty, index) => ({
+    faculty,
+    report: reportResults[index],
+  }));
 
-    const hrData = summary?.per_type?.hrEvaluation
-      ? { average: summary.per_type.hrEvaluation.average_rating }
-      : null;
-
-    const cell = (data) =>
-      data && data.average !== null
-        ? `<span class="text-green-600 font-medium">${data.average.toFixed(2)}</span>`
-        : `<span class="text-gray-400">—</span>`;
-
-    return {
-      rowHtml: `
-      <tr class="border-b border-gray-200 last:border-0">
-        <td class="py-3 pr-4">${faculty.name}</td>
-        <td class="py-3 pr-4">${cell(classroomData)}</td>
-        <td class="py-3 pr-4">${cell(studentData)}</td>
-        <td class="py-3 pr-4">${cell(peerData)}</td>
-        <td class="py-3 pr-4">${cell(hrData)}</td>
-        <td class="py-3">
-          <button
-            type="button"
-            class="view-report-btn text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
-            data-faculty-id="${faculty.id}"
-          >
-            View Report
-          </button>
-        </td>
-      </tr>
-    `,
-    };
-    }));
-
-  hrReportRowsCache = rows;
   const pager = getHrReportsPager();
   if (pager) pager.reset();
+
   renderHrReportsPage();
-}
+} 
 
 let currentReportFaculty = null;
 let currentReportTab = "combined";
@@ -292,6 +385,7 @@ attachDetailViewListeners();
 
 (async () => {
   await loadSystemSettings();
+  attachHrReportsFilterListeners();
   await renderReportsTable();
   openReportFromQueryParam();
   initGlobalTermFilter(onHrReportsTermChange);
