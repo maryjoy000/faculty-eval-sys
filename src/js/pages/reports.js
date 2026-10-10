@@ -505,6 +505,57 @@ function attachDetailViewListeners() {
 }
 
 // ============================================
+// PRINT: un-clip the report
+// ============================================
+// The report lives inside the app shell, which scrolls internally
+// (fixed height + overflow). In print that clips everything past the first
+// screen's worth of content, so long comment lists get cut off. Just for the
+// duration of printing, let every ancestor of the report grow to full height.
+let printStyleBackup = [];
+
+function releaseReportClippingForPrint() {
+  printStyleBackup = [];
+
+  let node = document.getElementById("report-tab-content");
+
+  while (node && node !== document.documentElement.parentNode) {
+    printStyleBackup.push({
+      node,
+      overflow: node.style.overflow,
+      overflowX: node.style.overflowX,
+      overflowY: node.style.overflowY,
+      height: node.style.height,
+      maxHeight: node.style.maxHeight
+    });
+
+    node.style.setProperty("overflow", "visible", "important");
+    node.style.setProperty("height", "auto", "important");
+    node.style.setProperty("max-height", "none", "important");
+
+    node = node.parentElement;
+  }
+}
+
+function restoreReportClippingAfterPrint() {
+  printStyleBackup.forEach((saved) => {
+    saved.node.style.removeProperty("overflow");
+    saved.node.style.removeProperty("height");
+    saved.node.style.removeProperty("max-height");
+
+    saved.node.style.overflow = saved.overflow;
+    saved.node.style.overflowX = saved.overflowX;
+    saved.node.style.overflowY = saved.overflowY;
+    saved.node.style.height = saved.height;
+    saved.node.style.maxHeight = saved.maxHeight;
+  });
+
+  printStyleBackup = [];
+}
+
+window.addEventListener("beforeprint", releaseReportClippingForPrint);
+window.addEventListener("afterprint", restoreReportClippingAfterPrint);
+
+// ============================================
 // OPEN REPORT FROM URL
 // ============================================
 

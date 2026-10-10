@@ -55,11 +55,17 @@ function countSentiments(comments) {
 function resolveSentimentCounts(backendSentiment, comments) {
   const c = backendSentiment && backendSentiment.counts;
   if (c) {
-    return {
+    const fromBackend = {
       Positive: Number(c.Positive || 0),
       Neutral: Number(c.Neutral || 0),
       Negative: Number(c.Negative || 0)
     };
+    const backendTotal =
+      fromBackend.Positive + fromBackend.Neutral + fromBackend.Negative;
+
+    // Only trust the backend counts when they cover every comment we have;
+    // a total smaller than the comment list means they are incomplete.
+    if (backendTotal >= (comments || []).length) return fromBackend;
   }
   return countSentiments(comments);
 }
