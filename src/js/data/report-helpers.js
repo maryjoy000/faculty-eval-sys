@@ -6,6 +6,64 @@
 // and builds the print-ready report document (header, tables, legend,
 // signature block).
 
+// ============================================
+// Comment + sentiment helpers (single source of truth)
+// ============================================
+// Every report (student, peer, HR) builds its comment list AND its sentiment
+// counts from the same normalized array, so the printed comments and the
+// printed counts can never disagree.
+const REPORT_SENTIMENT_LABELS = ["Positive", "Neutral", "Negative"];
+
+function normalizeSentimentLabel(raw) {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  const label = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  return REPORT_SENTIMENT_LABELS.includes(label) ? label : null;
+}
+
+function normalizeReportComments(rawComments) {
+  return (Array.isArray(rawComments) ? rawComments : [])
+    .map((comment) => {
+      if (typeof comment === "string") {
+        return { text: comment.trim(), sentiment: null };
+      }
+      if (!comment || typeof comment !== "object") {
+        return { text: "", sentiment: null };
+      }
+      return {
+        text: String(comment.text ?? comment.comment ?? comment.comment_text ?? "").trim(),
+        sentiment: normalizeSentimentLabel(comment.sentiment ?? comment.sentiment_label)
+      };
+    })
+    .filter((comment) => comment.text);
+}
+
+function countSentiments(comments) {
+  // Same rule as the backend: a comment with no saved label counts as Neutral.
+  const counts = { Positive: 0, Neutral: 0, Negative: 0 };
+  (comments || []).forEach((comment) => {
+    const label = comment && typeof comment === "object"
+      ? normalizeSentimentLabel(comment.sentiment)
+      : null;
+    counts[label || "Neutral"] += 1;
+  });
+  return counts;
+}
+
+// Prefer the backend's counts (computed over EVERY comment, not just the
+// loaded page); fall back to counting the comments we have.
+function resolveSentimentCounts(backendSentiment, comments) {
+  const c = backendSentiment && backendSentiment.counts;
+  if (c) {
+    return {
+      Positive: Number(c.Positive || 0),
+      Neutral: Number(c.Neutral || 0),
+      Negative: Number(c.Negative || 0)
+    };
+  }
+  return countSentiments(comments);
+}
+
 function getClassroomObservationData(facultyId) {
   const backend = hrReportDataCache?.[facultyId]?.classroom;
 
@@ -82,24 +140,9 @@ function getPeerToPeerData(facultyId) {
       }))
     })),
 
-    comments: (backend.comments || [])
-      .map((comment) => {
-        if (typeof comment === "string") {
-          return {
-            text: comment,
-            sentiment: null
-          };
-        }
+    comments: normalizeReportComments(backend.comments),
 
-        return {
-          text: comment.text || "",
-          sentiment: comment.sentiment
-            ? comment.sentiment.charAt(0).toUpperCase() +
-              comment.sentiment.slice(1).toLowerCase()
-            : null
-        };
-      })
-      .filter((comment) => comment.text),
+    sentimentCounts: resolveSentimentCounts(backend.sentiment, normalizeReportComments(backend.comments)),
 
     submissionCount: backend.submission_count || 0
   };
@@ -141,24 +184,7 @@ function getHrEvaluationData(facultyId) {
       }))
     })),
 
-    comments: (backend.comments || [])
-      .map((comment) => {
-        if (typeof comment === "string") {
-          return {
-            text: comment,
-            sentiment: null
-          };
-        }
-
-        return {
-          text: comment.text || "",
-          sentiment: comment.sentiment
-            ? comment.sentiment.charAt(0).toUpperCase() +
-              comment.sentiment.slice(1).toLowerCase()
-            : null
-        };
-      })
-      .filter((comment) => comment.text)
+    comments: normalizeReportComments(backend.comments)
   };
 }
 
@@ -198,49 +224,9 @@ function getStudentEvaluationData(faculty) {
     ),
     categoryScores,
 
-    comments: (backend.comments || [])
-      .map((comment) => {
-        if (typeof comment === "string") {
-          return {
-            text: comment,
-            sentiment: null
-          };
-        }
+    comments: normalizeReportComments(backend.comments),
 
-        return {
-          text: comment.text || "",
-          sentiment: comment.sentiment
-            ? comment.sentiment.charAt(0).toUpperCase() +
-              comment.sentiment.slice(1).toLowerCase()
-            : null
-        };
-      })
-      .filter((comment) => comment.text),
-
-    sentimentCounts: (backend.comments || []).reduce(
-      (counts, comment) => {
-        const label =
-          typeof comment === "object" && comment.sentiment
-            ? comment.sentiment.charAt(0).toUpperCase() +
-              comment.sentiment.slice(1).toLowerCase()
-            : null;
-
-        if (label === "Positive") {
-          counts.Positive += 1;
-        } else if (label === "Neutral") {
-          counts.Neutral += 1;
-        } else if (label === "Negative") {
-          counts.Negative += 1;
-        }
-
-        return counts;
-      },
-      {
-        Positive: 0,
-        Neutral: 0,
-        Negative: 0
-      }
-    ),
+    sentimentCounts: resolveSentimentCounts(backend.sentiment, normalizeReportComments(backend.comments)),
 
     submissionCount: backend.evaluation_count
   };
@@ -483,18 +469,15 @@ function buildStudentCategoryTableHtml(studentData) {
   `;
 }
 
-function buildSentimentSummaryHtml(studentData) {
-  const counts = (studentData && studentData.sentimentCounts) || {
-    Positive: 0,
-    Neutral: 0,
-    Negative: 0
-  };
+function buildSentimentSummaryHtml(data, heading = "Overall Comments Sentiment Result") {
+  const comments = (data && data.comments) || [];
+  const counts = (data && data.sentimentCounts) || countSentiments(comments);
   const total = counts.Positive + counts.Neutral + counts.Negative;
   const pct = (n) => total > 0 ? `${Math.round((n / total) * 100)}%` : "—";
 
   return `
-    <div class="hidden print:block mb-2">
-      <p class="text-xs print:text-[10px] font-semibold text-gray-700 mb-1">Overall Comments Sentiment Result (${total} comment${total === 1 ? "" : "s"})</p>
+    <div class="hidden print:block mb-2" style="break-inside: avoid;">
+      <p class="text-xs print:text-[10px] font-semibold text-gray-700 mb-1">${heading} (${total} comment${total === 1 ? "" : "s"})</p>
       <table class="w-full border-collapse text-xs print:text-[10px]">
         <thead>
           <tr class="bg-gray-200">
@@ -887,6 +870,10 @@ function buildPeerCategoryTableHtml(peerData) {
 
     </div>
 
+
+    <div class="mt-3">
+      ${buildSentimentSummaryHtml(peerData)}
+    </div>
 
     <!-- ============================================
          ACKNOWLEDGEMENT

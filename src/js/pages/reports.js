@@ -287,10 +287,55 @@ async function loadReportDetails(facultyId) {
     }
   };
 
+  // The student and peer endpoints paginate their comment list (default 10,
+  // max 50 per page). Reports must print EVERY comment, so walk all pages.
+  const COMMENT_PAGE_SIZE = 50;
+  const MAX_COMMENT_PAGES = 200;
+
+  const getBreakdownWithAllComments = async (endpoint) => {
+    const urlFor = (page) => {
+      const base = withTerm(endpoint);
+      const sep = base.includes("?") ? "&" : "?";
+      return `${base}${sep}comment_page=${page}&comment_per_page=${COMMENT_PAGE_SIZE}`;
+    };
+
+    const first = await getBreakdown(urlFor(1));
+    if (!first) return null;
+
+    const all = [...(first.comments || [])];
+    const pagination = first.comments_pagination || {};
+    const totalPages =
+      Number(pagination.total_pages ?? pagination.pages ?? pagination.totalPages) || null;
+
+    let page = 1;
+    let lastBatch = first.comments || [];
+
+    while (page < MAX_COMMENT_PAGES) {
+      const done = totalPages
+        ? page >= totalPages
+        : lastBatch.length < COMMENT_PAGE_SIZE;
+      if (done) break;
+
+      page += 1;
+      const next = await getBreakdown(urlFor(page));
+      const batch = (next && next.comments) || [];
+      if (!batch.length) break;
+
+      // Guard: if the server ignored the page number, stop instead of looping.
+      if (JSON.stringify(batch[0]) === JSON.stringify(lastBatch[0])) break;
+
+      all.push(...batch);
+      lastBatch = batch;
+    }
+
+    first.comments = all;
+    return first;
+  };
+
   const [classroom, student, peer, hr] = await Promise.all([
     getBreakdown(withTerm(`/evaluations/${facultyId}/classroom-breakdown`)),
-    getBreakdown(withTerm(`/evaluations/${facultyId}/student-breakdown`)),
-    getBreakdown(withTerm(`/evaluations/${facultyId}/peer-breakdown`)),
+    getBreakdownWithAllComments(`/evaluations/${facultyId}/student-breakdown`),
+    getBreakdownWithAllComments(`/evaluations/${facultyId}/peer-breakdown`),
     getBreakdown(withTerm(`/evaluations/${facultyId}/hr-breakdown`))
   ]);
 

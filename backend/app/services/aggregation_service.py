@@ -638,6 +638,13 @@ def get_peer_evaluation_breakdown(
         else None
     )
 
+    sentiment_counts = {"Positive": 0, "Neutral": 0, "Negative": 0}
+    for evaluation in evaluations:
+        if evaluation.comments and evaluation.comments.strip():
+            label = (evaluation.sentiment_label or "neutral").capitalize()
+            if label in sentiment_counts:
+                sentiment_counts[label] += 1
+
     paginated_comments = _get_paginated_comments(
         faculty_id=faculty_id,
         evaluation_type_id=et.id,
@@ -669,6 +676,10 @@ def get_peer_evaluation_breakdown(
         "domains": domains,
         "comments": paginated_comments["items"],
         "comments_pagination": paginated_comments["pagination"],
+                "sentiment": {
+            "counts": sentiment_counts,
+            "total_comments": sum(sentiment_counts.values()),
+        },
     }
 
 def get_hr_evaluation_breakdown(
