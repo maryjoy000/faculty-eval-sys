@@ -4,23 +4,13 @@ from flask_login import current_user
 from ..models.faculty import Faculty
 from ..models.faculty_report import FacultyReport
 from ..utils.decorators import roles_required, get_current_role
-from ..services.report_service import release_report
-from ..services.activity_service import log_activity
 
 reports_bp = Blueprint("reports", __name__)
 
-
-@reports_bp.route("/<int:faculty_id>/release", methods=["POST"])
-@roles_required("hr")
-def release(faculty_id):
-    faculty = Faculty.query.get_or_404(faculty_id)
-    report, notified = release_report(faculty, current_user.id)
-
-    log_activity(f"Released report for {faculty.name}", user_id=current_user.id)
-
-    result = report.to_dict()
-    result["notified"] = notified
-    return jsonify(result), 200
+# The "release report to faculty" feature was removed: faculty now see the
+# current open term's results directly. The /release route is gone. The
+# read-only /status route below is kept only so any old caller does not 404;
+# it can be deleted once nothing uses it.
 
 
 @reports_bp.route("/<int:faculty_id>/status", methods=["GET"])

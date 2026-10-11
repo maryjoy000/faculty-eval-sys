@@ -2,6 +2,462 @@
 // FACULTY: MY EVALUATION PAGE
 // ============================================
 
+// ============================================
+// EXPORT MY EVALUATION (PDF through the browser's "Save as PDF")
+// ============================================
+// Builds a print-only copy of the faculty member's CURRENT-TERM results
+// (the server only ever returns the open term to faculty), including every
+// comment, then opens the print dialog. Everything else on the page is hidden
+// while printing.
+
+const EXPORT_COMMENT_PAGE_SIZE = 50;
+const EXPORT_MAX_COMMENT_PAGES = 200;
+
+const FX_CELL = "border:1px solid #9CA3AF;padding:2px 6px;font-size:10px;";
+
+function exportEscape(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Plain, escaped text: <br> and line breaks become the given separator.
+function exportText(value, separator = " ") {
+  return exportEscape(
+    String(value ?? "")
+      .replace(/<br\s*\/?>/gi, separator)
+      .replace(/\s*\n\s*/g, separator)
+      .trim()
+  );
+}
+
+function exportScore(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
+  return Number(value).toFixed(2);
+}
+
+function exportIs404(error) {
+  return error?.status === 404 || String(error?.message || "").includes("404");
+}
+
+async function exportOptional(load) {
+  try {
+    return await load();
+  } catch (error) {
+    if (exportIs404(error)) return null;
+    throw error;
+  }
+}
+
+// Student and peer comments are paginated by the server (max 50 per page);
+// the export needs all of them, so walk every page.
+async function exportFetchWithAllComments(endpoint) {
+  const urlFor = (page) =>
+    `${endpoint}?comment_page=${page}&comment_per_page=${EXPORT_COMMENT_PAGE_SIZE}`;
+
+  const first = await apiGet(urlFor(1));
+  if (!first) return null;
+
+  const all = [...(first.comments || [])];
+  const totalPages = Number(first.comments_pagination?.total_pages) || null;
+
+  let page = 1;
+  let lastBatch = first.comments || [];
+
+  while (page < EXPORT_MAX_COMMENT_PAGES) {
+    const done = totalPages
+      ? page >= totalPages
+      : lastBatch.length < EXPORT_COMMENT_PAGE_SIZE;
+    if (done) break;
+
+    page += 1;
+
+    const next = await apiGet(urlFor(page));
+    const batch = (next && next.comments) || [];
+    if (!batch.length) break;
+
+    // If the server ignored the page number, stop instead of looping.
+    if (JSON.stringify(batch[0]) === JSON.stringify(lastBatch[0])) break;
+
+    all.push(...batch);
+    lastBatch = batch;
+  }
+
+  first.comments = all;
+  return first;
+}
+
+async function exportLoadEquivalents(typeCode) {
+  try {
+    const scale = await apiGet(`/rating-scales/${typeCode}`);
+    return scale && Array.isArray(scale.equivalents) ? scale.equivalents : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function exportEquivalent(equivalents, average) {
+  if (average === null || average === undefined) return "";
+  const value = Number(average);
+  const band = (equivalents || []).find(
+    (entry) => value >= Number(entry.min) && value <= Number(entry.max)
+  );
+  return band ? String(band.label) : "";
+}
+
+function exportNormalizeComments(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .map((comment) => {
+      const text = typeof comment === "string" ? comment : comment?.text ?? "";
+      const label =
+        typeof comment === "object" && comment?.sentiment
+          ? String(comment.sentiment).toLowerCase()
+          : "";
+
+      return {
+        text: String(text).trim(),
+        sentiment:
+          label === "positive" ? "Positive" : label === "negative" ? "Negative" : "Neutral"
+      };
+    })
+    .filter((comment) => comment.text);
+}
+
+function exportSentimentCounts(backendSentiment, comments) {
+  const fromBackend = backendSentiment && backendSentiment.counts;
+
+  if (fromBackend) {
+    const counts = {
+      Positive: Number(fromBackend.Positive || 0),
+      Neutral: Number(fromBackend.Neutral || 0),
+      Negative: Number(fromBackend.Negative || 0)
+    };
+
+    // Only trust the backend when it covers every comment we have.
+    if (counts.Positive + counts.Neutral + counts.Negative >= comments.length) {
+      return counts;
+    }
+  }
+
+  const counts = { Positive: 0, Neutral: 0, Negative: 0 };
+  comments.forEach((comment) => {
+    counts[comment.sentiment] += 1;
+  });
+  return counts;
+}
+
+function exportHeading(text) {
+  return `<p style="font-size:12px;font-weight:700;color:#1F2937;margin:10px 0 4px;">${exportEscape(text)}</p>`;
+}
+
+function exportDomainTable(domains) {
+  const rows = (domains || [])
+    .map((domain) => {
+      const indicators = (domain.indicators || [])
+        .map(
+          (indicator, index) => `
+            <tr>
+              <td style="${FX_CELL}text-align:center;width:28px;">${index + 1}</td>
+              <td style="${FX_CELL}">${exportText(indicator.text, " ")}</td>
+              <td style="${FX_CELL}text-align:center;width:70px;">${exportScore(indicator.average)}</td>
+            </tr>`
+        )
+        .join("");
+
+      return `
+        <tr style="background:#374151;color:#fff;break-inside:avoid;">
+          <td colspan="2" style="${FX_CELL}font-weight:700;">${exportText(domain.title, " — ")}</td>
+          <td style="${FX_CELL}text-align:center;font-weight:700;">${exportScore(domain.average)}</td>
+        </tr>${indicators}`;
+    })
+    .join("");
+
+  return `<table style="width:100%;border-collapse:collapse;margin-bottom:6px;"><tbody>${rows}</tbody></table>`;
+}
+
+function exportClassroomTable(domains) {
+  const rows = (domains || [])
+    .map((domain) => {
+      const indicators = (domain.indicators || [])
+        .map(
+          (indicator, index) => `
+            <tr>
+              <td style="${FX_CELL}text-align:center;width:28px;">${index + 1}</td>
+              <td style="${FX_CELL}">${exportText(indicator.text, " ")}</td>
+              <td style="${FX_CELL}text-align:center;width:50px;">${exportEscape(indicator.hcec ?? "—")}</td>
+              <td style="${FX_CELL}text-align:center;width:50px;">${exportEscape(indicator.cot ?? "—")}</td>
+              <td style="${FX_CELL}text-align:center;width:90px;">${exportEscape(indicator.level ?? "—")}</td>
+            </tr>`
+        )
+        .join("");
+
+      return `
+        <tr style="background:#374151;color:#fff;">
+          <td colspan="2" style="${FX_CELL}font-weight:700;">${exportText(domain.title, " — ")} (${exportScore(domain.average)})</td>
+          <td style="${FX_CELL}text-align:center;font-weight:700;">HCEC</td>
+          <td style="${FX_CELL}text-align:center;font-weight:700;">COT</td>
+          <td style="${FX_CELL}text-align:center;font-weight:700;">Level</td>
+        </tr>${indicators}`;
+    })
+    .join("");
+
+  return `<table style="width:100%;border-collapse:collapse;margin-bottom:6px;"><tbody>${rows}</tbody></table>`;
+}
+
+function exportSentimentSummary(counts, total) {
+  const pct = (n) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
+  const head = `${FX_CELL}text-align:center;font-weight:700;background:#E5E7EB;`;
+  const cell = (color) => `${FX_CELL}text-align:center;color:${color};`;
+
+  return `
+    <div style="break-inside:avoid;margin:8px 0;">
+      <p style="font-size:10px;font-weight:700;color:#374151;margin:0 0 3px;">
+        Overall Comments Sentiment Result (${total} comment${total === 1 ? "" : "s"})
+      </p>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr>
+          <th style="${head}">Positive</th><th style="${head}">Neutral</th><th style="${head}">Negative</th>
+        </tr></thead>
+        <tbody><tr>
+          <td style="${cell("#15803D")}">${counts.Positive} (${pct(counts.Positive)})</td>
+          <td style="${cell("#4B5563")}">${counts.Neutral} (${pct(counts.Neutral)})</td>
+          <td style="${cell("#B91C1C")}">${counts.Negative} (${pct(counts.Negative)})</td>
+        </tr></tbody>
+      </table>
+    </div>`;
+}
+
+function exportCommentsList(title, comments) {
+  const color = (label) =>
+    label === "Positive" ? "#15803D" : label === "Negative" ? "#B91C1C" : "#6B7280";
+
+  const body = comments.length
+    ? comments
+        .map(
+          (comment, index) => `
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #E5E7EB;break-inside:avoid;">
+              <p style="font-size:10px;color:#374151;flex:1;margin:0;">${index + 1}. ${exportEscape(comment.text)}</p>
+              <span style="font-size:9px;font-weight:700;color:${color(comment.sentiment)};white-space:nowrap;">${comment.sentiment}</span>
+            </div>`
+        )
+        .join("")
+    : `<p style="font-size:10px;color:#9CA3AF;font-style:italic;">No comments were submitted.</p>`;
+
+  return `${exportHeading(title)}${body}`;
+}
+
+function exportSection({ title, subtitle, body, breakBefore = true }) {
+  return `
+    <section style="${breakBefore ? "break-before:page;" : ""}">
+      <h2 style="font-size:14px;font-weight:700;color:#111827;margin:0 0 2px;">${exportEscape(title)}</h2>
+      ${subtitle ? `<p style="font-size:10px;color:#6B7280;margin:0 0 6px;">${exportEscape(subtitle)}</p>` : ""}
+      ${body}
+    </section>`;
+}
+
+function exportNoData(label) {
+  return `<p style="font-size:11px;color:#6B7280;font-style:italic;">No ${exportEscape(label)} results are available for this term yet.</p>`;
+}
+
+function buildExportHtml({ facultyName, summary, student, peer, hr, classroom, equivalents }) {
+  const termLabel = summary?.term?.label || "";
+  const perType = summary?.per_type || {};
+  const generated = new Date().toLocaleDateString(undefined, {
+    year: "numeric", month: "long", day: "numeric"
+  });
+
+  const overallPct = summary?.weighted_overall_pct;
+  const hasOverall = overallPct !== null && overallPct !== undefined;
+
+  const typeRows = [
+    ["Classroom Observation", "classroomObservation"],
+    ["Student Evaluation", "student"],
+    ["Peer-to-Peer Evaluation", "peerToPeer"],
+    ["HR Evaluation", "hrEvaluation"]
+  ]
+    .map(([label, key]) => {
+      const data = perType[key] || {};
+      const has = (data.count ?? 0) > 0 && data.average_rating !== null && data.average_rating !== undefined;
+
+      return `
+        <tr>
+          <td style="${FX_CELL}">${label}</td>
+          <td style="${FX_CELL}text-align:center;">${data.count ?? 0}</td>
+          <td style="${FX_CELL}text-align:center;">${has ? exportScore(data.average_rating) : "—"}</td>
+          <td style="${FX_CELL}text-align:center;">${has ? exportEscape(exportEquivalent(equivalents[key], data.average_rating)) : ""}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const head = `${FX_CELL}text-align:center;font-weight:700;background:#E5E7EB;`;
+
+  const summaryHtml = `
+    <section>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;text-align:center;margin-bottom:8px;">
+        <img src="../../assets/images/school-logo.jpg" alt="" style="width:48px;height:48px;object-fit:contain;">
+        <div>
+          <p style="font-size:14px;font-weight:700;color:#1F2937;margin:0;">HEADWATERS COLLEGE – ELIZABETH CAMPUS</p>
+          <p style="font-size:12px;font-weight:700;color:#1F2937;margin:0;">TEACHER PERFORMANCE EVALUATION TOOL</p>
+          <p style="font-size:9px;font-style:italic;color:#6B7280;margin:0;">Based on the Philippine Professional Standards for Teachers</p>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px;">
+        <span><strong>Full Name:</strong> ${exportEscape(facultyName)}</span>
+        <span>${termLabel ? `<strong>Term:</strong> ${exportEscape(termLabel)}` : ""}</span>
+      </div>
+
+      <h2 style="font-size:14px;font-weight:700;color:#111827;margin:0 0 4px;">Evaluation Summary</h2>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
+        <thead><tr>
+          <th style="${head}text-align:left;">Evaluation</th>
+          <th style="${head}">Submissions</th>
+          <th style="${head}">Average (1–5)</th>
+          <th style="${head}">Remarks</th>
+        </tr></thead>
+        <tbody>${typeRows}</tbody>
+      </table>
+      <p style="font-size:12px;font-weight:700;color:#111827;">
+        Overall Rating: ${hasOverall ? `${(Number(overallPct) / 20).toFixed(2)} (${Number(overallPct).toFixed(2)}%)` : "N/A"}
+      </p>
+      <p style="font-size:9px;color:#6B7280;margin-top:10px;">Generated on ${exportEscape(generated)}. Results are for the current term only and may change until the evaluation period closes.</p>
+    </section>`;
+
+  const studentComments = exportNormalizeComments(student?.comments);
+  const studentCounts = exportSentimentCounts(student?.sentiment, studentComments);
+  const studentHtml = exportSection({
+    title: "Student Evaluation",
+    subtitle: student ? `Based on ${student.submission_count ?? 0} student submission(s). Average: ${exportScore(student.average_rating)}` : "",
+    body: student
+      ? exportDomainTable(student.domains) +
+        exportSentimentSummary(studentCounts, studentCounts.Positive + studentCounts.Neutral + studentCounts.Negative) +
+        exportCommentsList("Student Comments (Anonymous)", studentComments)
+      : exportNoData("student evaluation")
+  });
+
+  const peerComments = exportNormalizeComments(peer?.comments);
+  const peerCounts = exportSentimentCounts(peer?.sentiment, peerComments);
+  const peerHtml = exportSection({
+    title: "Peer-to-Peer Evaluation",
+    subtitle: peer ? `Based on ${peer.submission_count ?? 0} peer submission(s). Average: ${exportScore(peer.average_rating ?? peer.overall_average)}` : "",
+    body: peer
+      ? exportDomainTable(peer.domains) +
+        exportSentimentSummary(peerCounts, peerCounts.Positive + peerCounts.Neutral + peerCounts.Negative) +
+        exportCommentsList("Peer Comments", peerComments)
+      : exportNoData("peer-to-peer evaluation")
+  });
+
+  const classroomHtml = exportSection({
+    title: "Classroom Observation",
+    subtitle: classroom ? `Overall: ${exportScore(classroom.overall_average)}` : "",
+    body: classroom ? exportClassroomTable(classroom.domains) : exportNoData("classroom observation")
+  });
+
+  const hrComments = exportNormalizeComments(hr?.comments);
+  const hrCounts = exportSentimentCounts(null, hrComments);
+  const hrHtml = exportSection({
+    title: "HR Evaluation",
+    subtitle: hr ? `Based on ${hr.evaluation_count ?? 0} HR evaluation(s)` : "",
+    body: hr
+      ? exportDomainTable(hr.domains) +
+        exportSentimentSummary(hrCounts, hrCounts.Positive + hrCounts.Neutral + hrCounts.Negative) +
+        exportCommentsList("HR Comments", hrComments)
+      : exportNoData("HR evaluation")
+  });
+
+  return summaryHtml + studentHtml + peerHtml + classroomHtml + hrHtml;
+}
+
+function ensureExportRoot() {
+  if (!document.getElementById("faculty-export-style")) {
+    const style = document.createElement("style");
+    style.id = "faculty-export-style";
+    style.textContent = `
+      #faculty-export-root { display: none; }
+      @media print {
+        @page { margin: 1cm; }
+        body > *:not(#faculty-export-root) { display: none !important; }
+        #faculty-export-root { display: block !important; font-family: inherit; color: #111827; }
+        body { background: #fff !important; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  let root = document.getElementById("faculty-export-root");
+
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "faculty-export-root";
+    document.body.appendChild(root);
+  }
+
+  return root;
+}
+
+async function exportMyEvaluation(facultyId, facultyName, summary, button) {
+  const originalLabel = button ? button.textContent : "";
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Preparing...";
+  }
+
+  try {
+    const [student, peer, hr, classroom, studentBands, peerBands, classroomBands, hrBands] =
+      await Promise.all([
+        exportOptional(() => exportFetchWithAllComments(`/evaluations/${facultyId}/student-breakdown`)),
+        exportOptional(() => exportFetchWithAllComments(`/evaluations/${facultyId}/peer-breakdown`)),
+        exportOptional(() => apiGet(`/evaluations/${facultyId}/hr-breakdown`)),
+        exportOptional(() => apiGet(`/evaluations/${facultyId}/classroom-breakdown`)),
+        exportLoadEquivalents("student"),
+        exportLoadEquivalents("peerToPeer"),
+        exportLoadEquivalents("classroomObservation"),
+        exportLoadEquivalents("hrEvaluation")
+      ]);
+
+    const root = ensureExportRoot();
+
+    root.innerHTML = buildExportHtml({
+      facultyName,
+      summary,
+      student,
+      peer,
+      hr,
+      classroom,
+      equivalents: {
+        student: studentBands,
+        peerToPeer: peerBands,
+        classroomObservation: classroomBands,
+        hrEvaluation: hrBands
+      }
+    });
+
+    // Let the logo finish loading so it appears in the PDF.
+    await Promise.all(
+      [...root.querySelectorAll("img")].map((image) =>
+        image.complete
+          ? null
+          : new Promise((resolve) => {
+              image.onload = image.onerror = resolve;
+            })
+      )
+    );
+
+    window.print();
+  } catch (error) {
+    console.error("Failed to prepare evaluation export:", error);
+    alert("Could not prepare your export. Please try again.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+}
+
 async function renderContent() {
   const container = document.getElementById("my-evaluation-content");
 
@@ -22,7 +478,7 @@ async function renderContent() {
     const facultyId = currentUser.linked_faculty_id;
 
     try {
-      // Backend release check happens here.
+      // The server limits faculty to the current open term.
       const evaluationData = await apiGet(`/evaluations/${facultyId}`);
 
       let classroomData = null;
@@ -40,9 +496,23 @@ async function renderContent() {
       container.innerHTML = `
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
 
-          <h2 class="text-xl font-bold text-gray-800 mb-4">
-            ${currentUser.name}
-          </h2>
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h2 class="text-xl font-bold text-gray-800">
+              ${currentUser.name}
+            </h2>
+
+            <button
+              type="button"
+              id="export-evaluation-btn"
+              class="btn-secondary text-sm"
+            >
+              Export PDF
+            </button>
+          </div>
+
+          <p class="text-xs text-gray-500 mb-4">
+            ${evaluationData.term?.label ? `Results for ${exportEscape(evaluationData.term.label)}. ` : ""}These may change until the evaluation period closes.
+          </p>
 
           <!-- Evaluation Tabs -->
           <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-3 mb-6">
@@ -92,6 +562,17 @@ async function renderContent() {
 
         </div>
       `;
+
+      document
+        .getElementById("export-evaluation-btn")
+        ?.addEventListener("click", (event) => {
+          exportMyEvaluation(
+            facultyId,
+            currentUser.name,
+            evaluationData,
+            event.currentTarget,
+          );
+        });
 
       const tabContent = document.getElementById("evaluation-tab-content");
       const tabButtons = document.querySelectorAll(".evaluation-tab");
@@ -879,18 +1360,16 @@ async function renderContent() {
       // Default tab
       setActiveTab("overall");
     } catch (error) {
-      if (error?.status === 403 || error?.message?.includes("released")) {
+      // 404 here means no evaluation term is currently open.
+      if (error?.status === 404) {
         container.innerHTML = `
           <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center">
-
             <p class="text-gray-500">
-              Your evaluation report hasn't been released by HR yet.
+              No evaluation term is currently open.
             </p>
-
             <p class="text-xs text-gray-400 mt-1">
-              Check back later, or contact HR if you believe this is a mistake.
+              Your results will appear here once a new term opens.
             </p>
-
           </div>
         `;
 

@@ -350,15 +350,6 @@ async function showReportDetail(faculty) {
   renderReportTabContent();
 }
 
-function updateReleaseStatusDisplay(faculty) {
-  const statusEl = document.getElementById("report-release-status");
-  const releasedReports = getReleasedReports();
-  const release = releasedReports[faculty.id];
-
-  statusEl.textContent = release ? `Sent: ${release.releasedAt}` : "Not yet sent to faculty";
-  statusEl.className = release ? "text-xs text-green-600" : "text-xs text-gray-400";
-}
-
 function attachReportTabListeners() {
   const tabButtons = document.querySelectorAll(".report-tab-btn");
 
@@ -401,85 +392,7 @@ function attachDetailViewListeners() {
   document.getElementById("print-report-btn").addEventListener("click", () => {
     window.print();
   });
-
-  document.getElementById("send-report-btn").addEventListener("click", () => {
-    showConfirmModal({
-      title: "Send Report to Faculty?",
-      message: `${currentReportFaculty.name} will be able to view their combined evaluation report in their Faculty portal.`,
-      confirmLabel: "Send Report",
-      isDestructive: false,
-      onConfirm: async () => {
-        try {
-          await apiPost(`/reports/${currentReportFaculty.id}/release`, {});
-
-          updateReleaseStatusDisplay(currentReportFaculty);
-
-          alert(
-            `The evaluation report for ${currentReportFaculty.name} has been released.`
-          );
-
-        } catch (error) {
-          console.error("Failed to release report:", error);
-
-          alert(
-            error.message ||
-            "Failed to release the report. Please try again."
-          );
-        }
-      }
-    });
-  });
 }
-
-// ============================================
-// PRINT: un-clip the report
-// ============================================
-// The app shell scrolls internally (fixed height + overflow), which clips
-// everything past the first screen when printing. Just while printing, let
-// every ancestor of the report grow to its full height.
-let printStyleBackup = [];
-
-function releaseReportClippingForPrint() {
-  printStyleBackup = [];
-
-  let node = document.getElementById("report-tab-content");
-
-  while (node) {
-    printStyleBackup.push({
-      node,
-      overflow: node.style.overflow,
-      overflowX: node.style.overflowX,
-      overflowY: node.style.overflowY,
-      height: node.style.height,
-      maxHeight: node.style.maxHeight
-    });
-
-    node.style.setProperty("overflow", "visible", "important");
-    node.style.setProperty("height", "auto", "important");
-    node.style.setProperty("max-height", "none", "important");
-
-    node = node.parentElement;
-  }
-}
-
-function restoreReportClippingAfterPrint() {
-  printStyleBackup.forEach((saved) => {
-    saved.node.style.removeProperty("overflow");
-    saved.node.style.removeProperty("height");
-    saved.node.style.removeProperty("max-height");
-
-    saved.node.style.overflow = saved.overflow;
-    saved.node.style.overflowX = saved.overflowX;
-    saved.node.style.overflowY = saved.overflowY;
-    saved.node.style.height = saved.height;
-    saved.node.style.maxHeight = saved.maxHeight;
-  });
-
-  printStyleBackup = [];
-}
-
-window.addEventListener("beforeprint", releaseReportClippingForPrint);
-window.addEventListener("afterprint", restoreReportClippingAfterPrint);
 
 // --- Deep-link support: if a facultyId is in the URL (e.g. from HR's
 // Faculty Management "View Reports" action), open straight to that

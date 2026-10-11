@@ -13,15 +13,35 @@ from ..models.evaluation import Evaluation, EvaluationResponse
 from ..utils.decorators import get_current_role, roles_required
 from ..utils.eligibility import resolve_evaluator, check_self_evaluation, check_period_open, check_duplicate
 from ..services.aggregation_service import get_faculty_evaluation_summary, get_classroom_observation_breakdown, get_student_evaluation_breakdown, get_peer_evaluation_breakdown, get_hr_evaluation_breakdown
-from ..services.report_service import is_released, mark_viewed
 from ..services.activity_service import log_activity
 from ..utils.sentiment import analyze_sentiment
 from ..utils.evaluation_rules import sanitize_comments, validate_required_comment
 from ..models.evaluation_period import EvaluationPeriod
+from ..models.school_term import SchoolTerm
 from ..utils.terms import resolve_term_param, resolve_submission_term
 from ..utils.time import utc_iso
 
 evaluations_bp = Blueprint("evaluations", __name__)
+
+
+def resolve_report_term(role):
+    """Term scope for report reads.
+
+    Faculty can only ever see the CURRENT (open) term; any ?term_id= they send
+    is ignored, so they can't browse past terms or all history. Admin and HR
+    keep the optional ?term_id= filter (None = all history).
+    """
+    if role == "faculty":
+        open_term = SchoolTerm.query.filter_by(status="open").first()
+
+        if open_term is None:
+            return None, (jsonify({
+                "error": "No evaluation term is currently open"
+            }), 404)
+
+        return open_term.id, None
+
+    return resolve_term_param()
 
 @evaluations_bp.route("/student/evaluators", methods=["GET"])
 @roles_required("student")
@@ -860,18 +880,29 @@ def get_faculty_summary(faculty_id):
         own_faculty = Faculty.query.filter_by(user_id=current_user.id).first()
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
-        if not is_released(faculty_id):
-            return jsonify({"error": "Your report has not been released yet"}), 403
-        mark_viewed(faculty_id)
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    term_id, term_error = resolve_term_param()
+    term_id, term_error = resolve_report_term(role)
     if term_error:
         return term_error[0], term_error[1]
 
-    return jsonify(get_faculty_evaluation_summary(faculty_id, term_id)), 200
+    summary = get_faculty_evaluation_summary(faculty_id, term_id)
+
+    # Tell the page which term these results belong to.
+    if term_id is not None:
+        term = SchoolTerm.query.get(term_id)
+        if term:
+            summary["term"] = {
+                "id": term.id,
+                "label": getattr(term, "label", None),
+                "school_year": getattr(term, "school_year", None),
+                "semester": getattr(term, "semester", None),
+                "status": getattr(term, "status", None),
+            }
+
+    return jsonify(summary), 200
 
 
 @evaluations_bp.route("/<int:faculty_id>/classroom-breakdown", methods=["GET"])
@@ -883,13 +914,11 @@ def get_classroom_breakdown(faculty_id):
         own_faculty = Faculty.query.filter_by(user_id=current_user.id).first()
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
-        if not is_released(faculty_id):
-            return jsonify({"error": "Your report has not been released yet"}), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    term_id, term_error = resolve_term_param()
+    term_id, term_error = resolve_report_term(role)
     if term_error:
         return term_error[0], term_error[1]
 
@@ -911,15 +940,11 @@ def get_student_breakdown(faculty_id):
 
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
-        if not is_released(faculty_id):
-            return jsonify({
-                "error": "Your report has not been released yet"
-            }), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    term_id, term_error = resolve_term_param()
+    term_id, term_error = resolve_report_term(role)
     if term_error:
         return term_error[0], term_error[1]
 
@@ -955,15 +980,11 @@ def get_peer_breakdown(faculty_id):
 
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
-        if not is_released(faculty_id):
-            return jsonify({
-                "error": "Your report has not been released yet"
-            }), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    term_id, term_error = resolve_term_param()
+    term_id, term_error = resolve_report_term(role)
     if term_error:
         return term_error[0], term_error[1]
 
@@ -999,15 +1020,11 @@ def get_hr_breakdown(faculty_id):
 
         if not own_faculty or own_faculty.id != faculty_id:
             return jsonify({"error": "Forbidden"}), 403
-        if not is_released(faculty_id):
-            return jsonify({
-                "error": "Your report has not been released yet"
-            }), 403
 
     if not Faculty.query.get(faculty_id):
         return jsonify({"error": "No faculty with that id"}), 404
 
-    term_id, term_error = resolve_term_param()
+    term_id, term_error = resolve_report_term(role)
     if term_error:
         return term_error[0], term_error[1]
 
