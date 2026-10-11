@@ -235,6 +235,8 @@ async function loadHrSentiment() {
   }
 }
 
+let hrSentimentDonutChart = null;
+
 function renderHrSentimentDonut(positive, neutral, negative) {
   const canvas = document.getElementById("hr-sentiment-donut-chart");
   const legendContainer = document.getElementById("hr-donut-legend");
@@ -245,7 +247,9 @@ function renderHrSentimentDonut(positive, neutral, negative) {
   const values = [positive, neutral, negative];
   const colors = ["#16A34A", "#F59E0B", "#DC2626"];
 
-  new Chart(canvas, {
+  if (hrSentimentDonutChart) hrSentimentDonutChart.destroy();
+
+  hrSentimentDonutChart = new Chart(canvas, {
     type: "doughnut",
 
     data: {
@@ -466,17 +470,201 @@ function exportHrRatingDistribution() {
   );
 }
 
-// Re-runnable term-scoped section.
+// ============================================
+// PERIOD STATUS, COMPLETION, NEEDS ATTENTION, NEGATIVE COMMENTS
+// ============================================
+
+function hrEscape(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function hrFormatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function hrPlural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+async function loadHrPeriodStatus() {
+  const list = document.getElementById("hr-period-status-list");
+  const badge = document.getElementById("hr-term-badge");
+  if (!list) return;
+
+  try {
+    // Period status is "right now", so it is deliberately not term-scoped.
+    const data = await apiGet("/evaluations/hr-dashboard/period-status");
+
+    if (badge) {
+      if (data.term) {
+        badge.textContent = data.term.label || `${data.term.school_year} · ${data.term.semester}`;
+        badge.className = "text-xs font-medium px-2 py-1 rounded-full bg-green-50 text-green-700";
+      } else {
+        badge.textContent = "No open term";
+        badge.className = "text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-500";
+      }
+    }
+
+    const styles = {
+      open: ["Open", "bg-green-50 text-green-700"],
+      upcoming: ["Upcoming", "bg-blue-50 text-blue-700"],
+      closed: ["Closed", "bg-gray-100 text-gray-500"],
+      not_scheduled: ["Not scheduled", "bg-gray-100 text-gray-400"]
+    };
+
+    list.innerHTML = data.periods.map((p) => {
+      const [text, cls] = styles[p.status] || styles.not_scheduled;
+      let note = "";
+
+      if (p.status === "open") {
+        note = p.days_remaining === 0
+          ? "Closes today"
+          : `Closes ${hrFormatDate(p.end_date)} · ${hrPlural(p.days_remaining, "day")} left`;
+      } else if (p.status === "upcoming") {
+        note = `Opens ${hrFormatDate(p.start_date)} · in ${hrPlural(p.days_remaining, "day")}`;
+      } else if (p.status === "closed") {
+        note = `Ended ${hrFormatDate(p.end_date)}`;
+      }
+
+      return `
+        <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 text-sm gap-3">
+          <div>
+            <p class="text-gray-700">${hrEscape(p.label)}</p>
+            ${note ? `<p class="text-xs text-gray-400">${hrEscape(note)}</p>` : ""}
+          </div>
+          <span class="text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${cls}">${text}</span>
+        </div>`;
+    }).join("");
+  } catch (error) {
+    console.error("Failed to load period status:", error);
+    list.innerHTML = `<p class="text-sm text-red-500">Unable to load period status.</p>`;
+  }
+}
+
+function hrProgressBarHtml(label, pct, note) {
+  const value = Math.max(0, Math.min(100, Number(pct) || 0));
+  const color = value >= 75 ? "#16A34A" : value >= 40 ? "#F59E0B" : "#DC2626";
+
+  return `
+    <div class="mb-4 last:mb-0">
+      <div class="flex items-baseline justify-between text-sm mb-1">
+        <span class="text-gray-700">${hrEscape(label)}</span>
+        <span class="font-semibold text-gray-800">${value.toFixed(1)}%</span>
+      </div>
+      <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div class="h-2 rounded-full" style="width:${value}%;background-color:${color}"></div>
+      </div>
+      ${note ? `<p class="text-xs text-gray-400 mt-1">${hrEscape(note)}</p>` : ""}
+    </div>`;
+}
+
+async function loadHrCompletion() {
+  const list = document.getElementById("hr-completion-list");
+  if (!list) return;
+
+  try {
+    const data = await apiGet(withTerm("/evaluations/dashboard-stats"));
+
+    const total = data.total_active_faculty || 0;
+    const done = data.completed_faculty_evaluations || 0;
+    const fullPct = total ? (done / total) * 100 : 0;
+
+    list.innerHTML =
+      hrProgressBarHtml("Student Evaluations", data.student_evaluation_percentage) +
+      hrProgressBarHtml("Peer-to-Peer Evaluations", data.peer_evaluation_percentage) +
+      hrProgressBarHtml("Classroom Observations", data.classroom_observation_percentage, "Faculty with at least one observation") +
+      hrProgressBarHtml(
+        "Fully Evaluated Faculty",
+        fullPct,
+        `${done} of ${total} faculty have all four evaluation types`
+      );
+  } catch (error) {
+    console.error("Failed to load completion stats:", error);
+    list.innerHTML = `<p class="text-sm text-red-500">Unable to load completion data.</p>`;
+  }
+}
+
+async function loadHrNeedsAttention() {
+  const list = document.getElementById("hr-needs-attention-list");
+  if (!list) return;
+
+  try {
+    const data = await apiGet(withTerm("/evaluations/hr-dashboard/needs-attention?limit=5"));
+
+    if (!data.faculty.length) {
+      list.innerHTML = `<p class="text-sm text-gray-400">No rated faculty yet for this term.</p>`;
+      return;
+    }
+
+    list.innerHTML = data.faculty.map((f, i) => `
+      <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 text-sm gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-xs text-gray-400 w-4">${i + 1}</span>
+          <div class="min-w-0">
+            <p class="text-gray-700 truncate">${hrEscape(f.name)}</p>
+            <p class="text-xs text-gray-400">Based on ${hrPlural(f.types_rated, "evaluation type")}</p>
+          </div>
+        </div>
+        <span class="font-semibold ${f.average < 3 ? "text-red-600" : "text-amber-600"}">${Number(f.average).toFixed(2)} / 5</span>
+      </div>`).join("");
+  } catch (error) {
+    console.error("Failed to load needs-attention list:", error);
+    list.innerHTML = `<p class="text-sm text-red-500">Unable to load this list.</p>`;
+  }
+}
+
+async function loadHrNegativeComments() {
+  const list = document.getElementById("hr-negative-comments-list");
+  if (!list) return;
+
+  try {
+    const data = await apiGet(withTerm("/evaluations/hr-dashboard/negative-comments?limit=5"));
+
+    if (!data.faculty.length) {
+      list.innerHTML = `<p class="text-sm text-gray-400">No faculty have enough negative comments to list.</p>`;
+      return;
+    }
+
+    list.innerHTML = data.faculty.map((f, i) => `
+      <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 text-sm gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-xs text-gray-400 w-4">${i + 1}</span>
+          <div class="min-w-0">
+            <p class="text-gray-700 truncate">${hrEscape(f.name)}</p>
+            <p class="text-xs text-gray-400">${f.negative_comments} of ${hrPlural(f.labeled_comments, "comment")}</p>
+          </div>
+        </div>
+        <span class="font-semibold text-red-600">${Number(f.negative_pct).toFixed(1)}%</span>
+      </div>`).join("");
+  } catch (error) {
+    console.error("Failed to load negative comment share:", error);
+    list.innerHTML = `<p class="text-sm text-red-500">Unable to load this list.</p>`;
+  }
+}
+
+// Re-runnable term-scoped section. (Period status is "right now", so it only loads once.)
 function reloadHrDashboardData() {
   loadHrDashboard();
   loadHrSentiment();
   loadHrRatingDistribution();
+  loadHrCompletion();
+  loadHrNeedsAttention();
+  loadHrNegativeComments();
 }
 
 mountPageContent();
 loadHrDashboard();
 loadHrSentiment();
 loadHrRatingDistribution();
+loadHrPeriodStatus();
+loadHrCompletion();
+loadHrNeedsAttention();
+loadHrNegativeComments();
 
 initGlobalTermFilter(reloadHrDashboardData);
 

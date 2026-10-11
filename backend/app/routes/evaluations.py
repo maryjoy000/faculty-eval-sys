@@ -785,6 +785,216 @@ def get_hr_dashboard():
         "evaluations": rows,
     }), 200
 
+@evaluations_bp.route("/hr-dashboard/period-status", methods=["GET"])
+@roles_required("admin", "hr")
+def get_period_status():
+    """Open/closed state of each evaluation type's period, plus the open term."""
+    today = date.today()
+
+    labels = {
+        "student": "Student Evaluation",
+        "peerToPeer": "Peer-to-Peer",
+        "classroomObservation": "Classroom Observation",
+        "hrEvaluation": "HR Evaluation",
+    }
+
+    types = {
+        et.code: et
+        for et in EvaluationType.query.filter(
+            EvaluationType.code.in_(list(labels.keys()))
+        ).all()
+    }
+
+    rows = []
+
+    for code, label in labels.items():
+        et = types.get(code)
+        periods = (
+            EvaluationPeriod.query
+            .filter(EvaluationPeriod.applies_to_type_id == et.id)
+            .order_by(EvaluationPeriod.id.desc())
+            .all()
+            if et else []
+        )
+
+        # Prefer a period that is open right now, then the next upcoming one,
+        # then the most recent one that has ended.
+        current = next(
+            (p for p in periods if p.start_date <= today <= p.end_date), None
+        )
+        upcoming = sorted(
+            (p for p in periods if p.start_date > today),
+            key=lambda p: p.start_date,
+        )
+        chosen = current or (upcoming[0] if upcoming else None) or (
+            periods[0] if periods else None
+        )
+
+        if chosen is None:
+            rows.append({
+                "code": code, "label": label, "status": "not_scheduled",
+                "start_date": None, "end_date": None, "days_remaining": None,
+            })
+            continue
+
+        if chosen.start_date <= today <= chosen.end_date:
+            status = "open"
+            days = (chosen.end_date - today).days
+        elif chosen.start_date > today:
+            status = "upcoming"
+            days = (chosen.start_date - today).days
+        else:
+            status = "closed"
+            days = None
+
+        rows.append({
+            "code": code,
+            "label": label,
+            "status": status,
+            "start_date": chosen.start_date.isoformat(),
+            "end_date": chosen.end_date.isoformat(),
+            # open: days left to end; upcoming: days until it starts
+            "days_remaining": days,
+        })
+
+    open_term = SchoolTerm.query.filter_by(status="open").first()
+
+    return jsonify({
+        "term": {
+            "id": open_term.id,
+            "label": open_term.label,
+            "school_year": open_term.school_year,
+            "semester": open_term.semester,
+            "status": open_term.status,
+        } if open_term else None,
+        "periods": rows,
+    }), 200
+
+
+def _faculty_signal_rows(term_id):
+    """Per active faculty: average rating across types, and negative-comment share.
+
+    Rating = mean of the per-type averages (student, peer, classroom, HR) so a
+    type with many submissions doesn't drown out the others. Negative share
+    only counts student and peer comments that have a sentiment label.
+    """
+    active = Faculty.query.filter_by(status="Active").order_by(Faculty.name).all()
+    active_ids = [f.id for f in active]
+
+    if not active_ids:
+        return []
+
+    type_rows = {
+        et.id: et.code
+        for et in EvaluationType.query.filter(
+            EvaluationType.code.in_(
+                ["student", "peerToPeer", "classroomObservation", "hrEvaluation"]
+            )
+        ).all()
+    }
+
+    query = Evaluation.query.filter(
+        Evaluation.faculty_id.in_(active_ids),
+        Evaluation.evaluation_type_id.in_(list(type_rows.keys())),
+    )
+    if term_id is not None:
+        query = query.filter(Evaluation.term_id == term_id)
+
+    per_faculty = {
+        f.id: {"name": f.name, "ratings": {}, "labeled": 0, "negative": 0}
+        for f in active
+    }
+
+    for ev in query.all():
+        bucket = per_faculty.get(ev.faculty_id)
+        code = type_rows.get(ev.evaluation_type_id)
+
+        if bucket is None or code is None:
+            continue
+
+        if ev.overall_average is not None:
+            bucket["ratings"].setdefault(code, []).append(ev.overall_average)
+
+        if code in ("student", "peerToPeer"):
+            label = (ev.sentiment_label or "").strip().lower()
+            if label in ("positive", "neutral", "negative"):
+                bucket["labeled"] += 1
+                if label == "negative":
+                    bucket["negative"] += 1
+
+    rows = []
+
+    for faculty_id, bucket in per_faculty.items():
+        type_averages = {
+            code: sum(vals) / len(vals)
+            for code, vals in bucket["ratings"].items()
+            if vals
+        }
+        overall = (
+            sum(type_averages.values()) / len(type_averages)
+            if type_averages else None
+        )
+
+        rows.append({
+            "id": faculty_id,
+            "name": bucket["name"],
+            "average": round(overall, 2) if overall is not None else None,
+            "rating_pct": round(overall / 5 * 100, 2) if overall is not None else None,
+            "types_rated": len(type_averages),
+            "labeled_comments": bucket["labeled"],
+            "negative_comments": bucket["negative"],
+            "negative_pct": (
+                round(bucket["negative"] / bucket["labeled"] * 100, 1)
+                if bucket["labeled"] else None
+            ),
+        })
+
+    return rows
+
+
+@evaluations_bp.route("/hr-dashboard/needs-attention", methods=["GET"])
+@roles_required("admin", "hr")
+def get_faculty_needs_attention():
+    """Lowest-rated faculty (ascending), scoped by ?term_id=."""
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    limit = min(request.args.get("limit", default=10, type=int) or 10, 50)
+
+    rated = [r for r in _faculty_signal_rows(term_id) if r["average"] is not None]
+    rated.sort(key=lambda r: (r["average"], r["name"]))
+
+    return jsonify({"faculty": rated[:limit], "total_rated": len(rated)}), 200
+
+
+@evaluations_bp.route("/hr-dashboard/negative-comments", methods=["GET"])
+@roles_required("admin", "hr")
+def get_faculty_negative_comment_share():
+    """Faculty with the highest share of negative student/peer comments.
+
+    Needs at least ?min_comments= (default 3) labelled comments so one angry
+    comment on a single evaluation can't put someone at 100%.
+    """
+    term_id, term_error = resolve_term_param()
+    if term_error:
+        return term_error[0], term_error[1]
+
+    limit = min(request.args.get("limit", default=10, type=int) or 10, 50)
+    min_comments = max(request.args.get("min_comments", default=3, type=int) or 3, 1)
+
+    rows = [
+        r for r in _faculty_signal_rows(term_id)
+        if r["labeled_comments"] >= min_comments and r["negative_comments"] > 0
+    ]
+    rows.sort(key=lambda r: (-r["negative_pct"], -r["negative_comments"], r["name"]))
+
+    return jsonify({
+        "faculty": rows[:limit],
+        "min_comments": min_comments,
+    }), 200
+
+
 @evaluations_bp.route("/peer-status/<int:faculty_id>", methods=["GET"])
 @roles_required("faculty")
 def get_peer_evaluation_result(faculty_id):

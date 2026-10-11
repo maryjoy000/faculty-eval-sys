@@ -23,6 +23,43 @@
 
     <div id="hr-stat-cards"></div>
 
+    <!-- Evaluation period status + completion -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <div class="flex items-start justify-between gap-3 mb-1">
+                <h2 class="font-semibold text-gray-800">Evaluation Period Status</h2>
+                <span id="hr-term-badge" class="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-500">—</span>
+            </div>
+            <p class="text-sm text-gray-500 mb-3">Which evaluations are open for submission right now.</p>
+            <div id="hr-period-status-list"></div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <h2 class="font-semibold text-gray-800">Completion Progress</h2>
+            <p class="text-sm text-gray-500 mb-3">Submitted evaluations against what is expected (follows the term filter).</p>
+            <div id="hr-completion-list"></div>
+        </div>
+
+    </div>
+
+    <!-- Needs attention + negative comment share -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
+            <h2 class="font-semibold text-gray-800">Low Rated Faculty</h2>
+            <p class="text-sm text-gray-500 mb-4">Lowest overall ratings (average across evaluation types, out of 5).</p>
+            <div id="hr-needs-attention-list" class="flex-1"></div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col">
+            <h2 class="font-semibold text-gray-800">Highest Share of Negative Comments</h2>
+            <p class="text-sm text-gray-500 mb-4">Student and peer comments labelled negative. Faculty need at least 3 labelled comments to be listed.</p>
+            <div id="hr-negative-comments-list" class="flex-1"></div>
+        </div>
+
+    </div>
+
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
         <h2 class="font-semibold text-gray-800">Sentiment Analysis Distribution</h2>
         <p class="text-sm text-gray-500 mb-4">Breakdown of student and peer feedback sentiment across all faculty members.</p>
